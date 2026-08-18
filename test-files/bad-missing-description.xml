@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The description element is missing altogether. Every element is mandatory. -->
+<Guess-Market>
+    <GM-events>
+        <GM-event name="Event Without A Description">
+            <id>1</id>
+            <comision type="on-close">10</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b>100</b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+    </GM-events>
+</Guess-Market>

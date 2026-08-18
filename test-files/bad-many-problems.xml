@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Four events, each broken in a different way, plus a clash of ids between the second and the fourth.
+  Loading this file should produce one report listing every fault, not just the first one.
+-->
+<Guess-Market>
+    <GM-events>
+        <GM-event name="Commission Out Of Range">
+            <id>1</id>
+            <description>The commission of this event is far too high.</description>
+            <comision type="on-close">150</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b>100</b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+        <GM-event name="Too Many Options">
+            <id>2</id>
+            <description>This event offers three answers instead of two.</description>
+            <comision type="on-close">10</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+                <GM-option>Perhaps</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b>100</b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+        <GM-event>
+            <id>3</id>
+            <description>This event has no name attribute and no liquidity index.</description>
+            <comision type="on-close">10</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b></b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+        <GM-event name="Id Already Taken">
+            <id>2</id>
+            <description>This event carries an id that another event already uses.</description>
+            <comision type="on-purchase">5</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b>100</b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+    </GM-events>
+</Guess-Market>

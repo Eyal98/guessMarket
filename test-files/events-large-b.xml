@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A very steady market and a very jumpy one, side by side. With b = 10000 a purchase barely moves the
+  price; with b = 1 a single share almost decides the event. Both are legal, and both are worth
+  looking at to see the liquidity index doing its job.
+-->
+<Guess-Market>
+    <GM-events>
+        <GM-event name="Steady Market">
+            <id>10</id>
+            <description>A deep market where prices hardly move. Decided by the person running the system.</description>
+            <comision type="on-close">90</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR>
+                    <b>10000</b>
+                </GM-LMSR>
+            </GM-method>
+        </GM-event>
+        <GM-event name="Jumpy Market">
+            <id>11</id>
+            <description>A thin market where a single share moves the price a long way. Decided by the person running the system.</description>
+            <comision type="on-purchase">1</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR>
+                    <b>1</b>
+                </GM-LMSR>
+            </GM-method>
+        </GM-event>
+    </GM-events>
+</Guess-Market>

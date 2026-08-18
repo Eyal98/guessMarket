@@ -1,0 +1,42 @@
+### Guess Market build output ###
+out/
+build/
+dist/
+tools/
+*.gm
+
+### graphify ###
+# Local working directory of the graphify tool. Everything in it is generated from the source in
+# seconds by "graphify extract . --code-only", and the graph alone runs to well over a megabyte,
+# so none of it belongs in the history.
+graphify-out/
+
+### IntelliJ IDEA ###
+!**/src/main/**/out/
+!**/src/test/**/out/
+.kotlin
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The commission is -5, below the minimum of 0. -->
+<Guess-Market>
+    <GM-events>
+        <GM-event name="Generous Event">
+            <id>1</id>
+            <description>An event that offers a negative commission.</description>
+            <comision type="on-purchase">-5</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b>100</b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+    </GM-events>
+</Guess-Market>

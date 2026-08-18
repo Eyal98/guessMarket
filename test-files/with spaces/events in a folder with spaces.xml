@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The same sound content, in a folder whose name contains spaces and under a file name that contains
+  spaces. Loading this proves that a path with spaces in it needs no quoting and no special handling.
+-->
+<Guess-Market>
+    <GM-events>
+        <GM-event name="Event Loaded From A Path With Spaces">
+            <id>1</id>
+            <description>An ordinary event that happens to live in a folder with spaces in its name.</description>
+            <comision type="on-purchase">25</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b>100</b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+    </GM-events>
+</Guess-Market>

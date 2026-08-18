@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The commission type is "on-sale", which is not one of the two accepted values. -->
+<Guess-Market>
+    <GM-events>
+        <GM-event name="Event With An Invented Commission Type">
+            <id>1</id>
+            <description>An event whose commission is charged at a time nobody has defined.</description>
+            <comision type="on-sale">20</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b>100</b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+    </GM-events>
+</Guess-Market>

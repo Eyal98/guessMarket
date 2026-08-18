@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A sound file with three events. It deliberately mixes things up so that one load exercises most of
+  the system: both commission types, a commission of zero, three different liquidity indexes, and ids
+  that are neither ordered nor consecutive.
+-->
+<Guess-Market>
+    <GM-events>
+        <GM-event name="Earth Quake on Dead Sea">
+            <id>3</id>
+            <description>Will there be an earthquake of magnitude 4 or above in the Dead Sea area before the end of 2026? Decided by the official report of the Geological Survey of Israel.</description>
+            <comision type="on-purchase">50</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR>
+                    <b>100</b>
+                </GM-LMSR>
+            </GM-method>
+        </GM-event>
+        <GM-event name="Eurovision Winner From Northern Europe">
+            <id>1</id>
+            <description>Will the next Eurovision song contest be won by a country in northern Europe? Decided when the final results are announced.</description>
+            <comision type="on-close">10</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR>
+                    <b>200</b>
+                </GM-LMSR>
+            </GM-method>
+        </GM-event>
+        <GM-event name="World Cup Final Goes To Extra Time">
+            <id>7</id>
+            <description>Will the next World Cup final still be level after ninety minutes? Decided at the final whistle of regular time.</description>
+            <comision type="on-close">0</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR>
+                    <b>50</b>
+                </GM-LMSR>
+            </GM-method>
+        </GM-event>
+    </GM-events>
+</Guess-Market>

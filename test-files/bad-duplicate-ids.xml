@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Two events share the id 4. Expected: the second one is reported as clashing with the first. -->
+<Guess-Market>
+    <GM-events>
+        <GM-event name="First Event">
+            <id>4</id>
+            <description>An event with a perfectly good id.</description>
+            <comision type="on-close">10</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b>100</b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+        <GM-event name="Second Event">
+            <id>4</id>
+            <description>An event that has taken someone else's id.</description>
+            <comision type="on-close">10</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b>100</b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+    </GM-events>
+</Guess-Market>

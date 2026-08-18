@@ -1,0 +1,19 @@
+This file holds perfectly good event data, but its name does not end with .xml,
+so the system must refuse it and say why.
+
+<Guess-Market>
+    <GM-events>
+        <GM-event name="Wrong Extension">
+            <id>1</id>
+            <description>An event in a file the system will not even open.</description>
+            <comision type="on-close">10</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b>100</b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+    </GM-events>
+</Guess-Market>

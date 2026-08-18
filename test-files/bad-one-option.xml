@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A single outcome leaves nothing to choose between. -->
+<Guess-Market>
+    <GM-events>
+        <GM-event name="Event With Nothing To Choose">
+            <id>1</id>
+            <description>An event with only one possible answer.</description>
+            <comision type="on-close">10</comision>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b>100</b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+    </GM-events>
+</Guess-Market>
