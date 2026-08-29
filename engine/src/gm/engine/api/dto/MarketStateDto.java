@@ -16,14 +16,17 @@ import java.util.List;
  * @param commissionCollected how much commission the event has taken so far
  * @param marketMakerBalance  what the market maker account holds; it is negative while the market
  *                            maker is still out of pocket for the subsidies it paid
- * @param history             the trades of this event, newest first
- * @param closed              whether the event has been decided
- * @param winningOptionName   the option the event ended on, or {@code null} while it is open
- * @param winningShares       how many shares of the winning option were held, zero while open
- * @param totalPaidOut        what the winners received, zero while the event is open
+ * @param history                 the trades of this event, newest first
+ * @param closed                  whether the event has been decided
+ * @param winningOptionName       the option the event ended on, or {@code null} while it is open
+ * @param winningShares           how many shares of the winning option were held, zero while open
+ * @param totalPaidOut            what the winners received, zero while the event is open
+ * @param payoutPerWinningShare   what one share of the winning option is worth when the event closes.
+ *                                A share of the losing option is worth nothing, so this one number
+ *                                states the value of both winning and losing.
  */
 public record MarketStateDto(EventInfoDto event, List<OptionStateDto> options, double eventAccountBalance,
                              double commissionCollected, double marketMakerBalance, List<TradeDto> history,
                              boolean closed, String winningOptionName, long winningShares,
-                             double totalPaidOut) implements Serializable {
+                             double totalPaidOut, double payoutPerWinningShare) implements Serializable {
 }

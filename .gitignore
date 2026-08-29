@@ -5,6 +5,11 @@ dist/
 tools/
 *.gm
 
+### personal data — never commit ###
+# The submitted readme carries the submitter's identity number. It ships inside the submission zip
+# and has no business in a public repository; README.md is the public-facing document instead.
+docs/readme.docx
+
 ### graphify ###
 # Local working directory of the graphify tool. Everything in it is generated from the source in
 # seconds by "graphify extract . --code-only", and the graph alone runs to well over a megabyte,

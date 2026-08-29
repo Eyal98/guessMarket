@@ -7,6 +7,7 @@ import gm.engine.api.dto.OptionStateDto;
 import gm.engine.api.dto.PurchaseResultDto;
 import gm.engine.api.dto.TradeDto;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -117,6 +118,30 @@ final class ConsolePrinter {
             System.out.printf(rowFormat, option.number(), option.name(),
                     twoDecimals(option.value()), option.sharesBought());
         }
+        printFavourite(state);
+        System.out.printf(LABEL_FORMAT, "Each share is worth",
+                twoDecimals(state.payoutPerWinningShare()) + " if its option wins, "
+                        + twoDecimals(0) + " if it loses");
+    }
+
+    /**
+     * Names the option the market currently believes in. An untouched event, and any event whose
+     * options have drawn level, has no favourite, and saying so is more honest than picking whichever
+     * of two equal values happened to come first.
+     */
+    private void printFavourite(MarketStateDto state) {
+        OptionStateDto leader = state.options().stream()
+                .max(Comparator.comparingDouble(OptionStateDto::value))
+                .orElse(null);
+        if (leader == null) {
+            return;
+        }
+        long sharingTheLead = state.options().stream()
+                .filter(option -> Math.abs(option.value() - leader.value()) <= ROUNDING_NOISE)
+                .count();
+        System.out.printf(LABEL_FORMAT, "Most likely outcome", sharingTheLead > 1
+                ? "no favourite, the options are level"
+                : leader.name() + ", at " + twoDecimals(leader.value()));
     }
 
     void printPurchase(PurchaseResultDto purchase) {
@@ -136,9 +161,13 @@ final class ConsolePrinter {
     private void printAccounts(MarketStateDto state) {
         System.out.println();
         System.out.println("Accounts:");
-        System.out.printf(LABEL_FORMAT, "Event account", twoDecimals(state.eventAccountBalance()));
+        System.out.printf(LABEL_FORMAT, "This event's MM account", twoDecimals(state.eventAccountBalance()));
         System.out.printf(LABEL_FORMAT, "Commission collected", twoDecimals(state.commissionCollected()));
-        System.out.printf(LABEL_FORMAT, "Market maker account", twoDecimals(state.marketMakerBalance()));
+        System.out.printf(LABEL_FORMAT, "Market maker overall", twoDecimals(state.marketMakerBalance()));
+        if (state.marketMakerBalance() < 0) {
+            System.out.println("  A negative overall balance is subsidy the market maker still has"
+                    + " invested in events that have not closed.");
+        }
     }
 
     private void printHistory(List<TradeDto> history) {

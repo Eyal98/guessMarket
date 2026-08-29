@@ -162,7 +162,7 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
                 winner != null,
                 winner == null ? null : winner.name(),
                 winner == null ? 0L : winner.sharesBought(),
-                event.totalPaidOut());
+                event.totalPaidOut(), Event.PAYOUT_PER_WINNING_SHARE);
     }
 
     private List<TradeDto> newestFirst(List<Trade> history) {
