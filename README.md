@@ -1,19 +1,10 @@
-# Guess Market — תרגיל 1
+# Guess Market — תרגיל 2
 
-מימוש כאפליקציית Console בסביבת Java 25.
+מימוש כאפליקציית **JavaFX** בסביבת Java 25.
 
-מערכת מסחר באירועים בינאריים, בהשראת Polymarket. משתמשים קונים מניות של תוצאה שהם מאמינים בה,
-המחיר נקבע בשיטת LMSR, ובסגירת האירוע משולם דולר לכל מניה זוכה.
-
----
-
-## בונוסים שמומשו
-
-מומש **בונוס שמירה וטעינה של מצב המערכת (5 נקודות)** במלואו.
-
-- פקודה 6 שומרת את מלוא מצב המערכת לקובץ, כולל כל הסטוריית המסחר ויתרות החשבונות.
-- פקודה 7 טוענת מצב שנשמר, במקום מה שטעון כרגע. הפקודה זמינה גם לפני שנטען קובץ XML כלשהו.
-- המשתמש נוקב נתיב מלא ושם קובץ ללא סיומת; המערכת מוסיפה בעצמה את הסיומת `.gm`.
+מערכת מסחר באירועים, בהשראת Polymarket. משתמשים בעלי חשבונות סוחרים במניות של תוצאות, בשתי שיטות
+מסחר שונות — **LMSR** מול חשבון האירוע, ו‑**ספר פקודות** בין הסוחרים עצמם — ובסגירת האירוע מקבלים
+מחזיקי האפשרות הזוכה את שווי המניה.
 
 ---
 
@@ -28,14 +19,18 @@
 
 > תעודת הזהות מופיעה בקובץ ה‑readme המוגש בלבד, ולא כאן — אין סיבה לפרסם מספר תעודת זהות במאגר ציבורי.
 
+הממשק של תרגיל 1 (Console) הוסר מהעץ הנוכחי, והוא נשמר במלואו בתגית `ex1-submission` במאגר.
+
 ---
 
 ## הוראות הרצה
 
 ### דרישת סביבה
 
-המערכת נכתבה, קומפלה ונבדקה על **Java 25** בלבד (JDK 25.0.4), על מערכת Windows.
-יש לוודא שהפקודה `java` ניתנת להרצה משורת הפקודה.
+**Java 25** (פותח ונבדק על JDK 25.0.4, Windows 11).
+
+**JavaFX אינו חלק מה‑JDK**, ולכן הוא נארז בתוך ההגשה עצמה, בתיקייה `lib\javafx`. אין צורך להתקין
+דבר — התיקייה חייבת רק לשבת ליד ה‑jar.
 
 ### הרצה
 
@@ -43,17 +38,11 @@
 run.bat
 ```
 
-או, מתוך אותה תיקייה:
+`run.bat` עובד מכל תיקייה, לא רק מזו שבה הוא יושב. הוא בודק מראש שקיימת Java, ששני ה‑jar במקומם,
+ושתיקיית JavaFX נמצאת — ומציג הודעה מובנת במקום לקרוס עם חריגה טכנית.
 
-```
-java -jar guess-market.jar
-```
-
-**חשוב:** שני ה‑jar חייבים לשבת באותה תיקייה. הקובץ `guess-market.jar` מצביע על `engine.jar`
-ב‑`Class-Path` שלו, ולכן הפרדתם תמנע את עליית התוכנית.
-
-`run.bat` בודק מראש אם Java מותקנת ואם שני ה‑jar נמצאים במקום, ומציג הודעה מובנת במקום לקרוס
-עם חריגה טכנית.
+**חשוב:** שני ה‑jar ותיקיית `lib\javafx` חייבים לשבת יחד. `guess-market.jar` מצביע על `engine.jar`
+ב‑`Class-Path` שלו, ו‑JavaFX נמצא דרך ה‑module path שב‑`run.bat`.
 
 ### בנייה מהמקור
 
@@ -61,8 +50,9 @@ java -jar guess-market.jar
 build.bat
 ```
 
-מקמפל את שני המודולים ויוצר את `build\engine.jar` ואת `build\guess-market.jar`.
-משתמש ב‑`javac` וב‑`jar` מה‑JDK בלבד — אין תלות ב‑Maven, ב‑Gradle או בכל כלי חיצוני אחר.
+מקמפל את שני המודולים ויוצר את `build\engine.jar` ואת `build\guess-market.jar`. משתמש ב‑`javac`
+וב‑`jar` מה‑JDK בלבד — אין תלות ב‑Maven, ב‑Gradle או בכל כלי חיצוני אחר. הקומפילציה כוללת
+`-g -parameters`, כך שמי שפותח את ה‑jar ב‑IDE רואה את שמות המשתנים האמיתיים.
 
 ### הרצת הבדיקות
 
@@ -70,59 +60,132 @@ build.bat
 test.bat
 ```
 
-דורש את `junit-platform-console-standalone.jar` בתיקיית `tools/` (אינו נכלל במאגר).
+**192 בדיקות JUnit 5**, כולן עוברות. דורש את `junit-platform-console-standalone.jar` בתיקיית
+`tools\` (אינו נכלל בהגשה).
 
 ---
 
-## תפריט הפקודות
+## המסך
 
-| # | פקודה | הערות |
-|---|---|---|
-| 1 | Load an events file | זמינה תמיד. מבקשת נתיב מלא לקובץ XML. |
-| 2 | Show all events | מציגה את כל האירועים הטעונים. |
-| 3 | Show the market state of an event | מצב המסחר, החשבונות והסטוריית אירוע אחד. |
-| 4 | Participate in an event | קניית מניות. מוצגים רק אירועים פעילים. |
-| 5 | Close an event | הכרעת אירוע ותשלום למנצחים. |
-| 6 | Save the system to a file | בונוס. שמירת מצב המערכת. |
-| 7 | Load a saved system from a file | בונוס. טעינת מצב שנשמר. זמינה תמיד. |
-| 8 | Exit | יציאה מהמערכת. |
+חלון אחד, כותרת משותפת, ושני לשוניות — בדיוק לפי קובץ העיצוב שסופק.
 
-פקודות 2 עד 6 דורשות שיהיה קובץ תקין טעון. אם אין — מוצגת הודעה המסבירה זאת ומפנה לפקודה 1,
-והמערכת ממשיכה לעבוד כרגיל.
+**רצועה עליונה:** טעינת קובץ אירועים, שמירה ושחזור של מצב המערכת, מתג האנימציות ובוחר העיצוב.
 
-בכל מקום שבו בוחרים מתוך רשימה, הקלדת **0** מבטלת ומחזירה לתפריט ללא שדבר נעשה.
-בבקשת נתיב קובץ, לחיצת Enter על שורה ריקה מבטלת.
+**לשונית Events:** כל האירועים משמאל, ומעליהם שלוש קבוצות מסננים — סוג, סטטוס וסוג עמלה — שבכל אחת
+"All" נבחר מלכתחילה. מימין נפרש האירוע הנבחר: אירוע LMSR מציג ערך לכל אפשרות והסטוריית מסחר,
+ואירוע ספר פקודות מציג שני ספרים, את המחירים שהם מרמזים עליהם, וטבלת מי מחזיק במה.
+
+**לשונית Users:** רשימת המשתמשים משמאל, וימינה המשתמש הנבחר — היתרה שלו, האירועים שהוא מעורב בהם,
+ולוח הפעולה על האירוע שנבחר מתוכם.
+
+**המסחר יושב בלשונית המשתמשים**, כפי שקובץ העיצוב מראה. יש לכך גם נימוק ענייני: כך השאלה "מי מבצע
+את הפעולה" חסרת משמעות — זהו המשתמש הנבחר, ואין דרך לטעות בכך.
+
+**טעינת קובץ** רצה על `Task` ברקע עם פס התקדמות והשהיה מכוונת, אחרת הקריאה מהירה מכדי שמישהו יבחין
+שקרה משהו.
+
+**שינוי גודל:** כל אזור שעלול לגלוש עטוף ב‑`ScrollPane`. החלון נותר בר‑שינוי גודל, והמינימום הוא
+720×480 — נבדק ויזואלית שהכל נשאר שמיש בגודל הזה.
+
+---
+
+## בונוסים שמומשו
+
+מומשו **כל ארבעת הבונוסים**, וכן בונוס השמירה והטעינה שנשמר מתרגיל 1.
+
+| # | בונוס | ניקוד | מצב |
+|---|---|---|---|
+| 1 | עיצובים (Skins) | 5 | שלושה עיצובים — Classic, Night, Parchment |
+| 2 | אנימציות | 5 | שלוש תנועות, כולן מתחת ל‑2 שניות |
+| 3 | גרפים | 8 | מחיר מניה לאורך זמן, ויתרת משתמש לאורך זמן |
+| 4 | יצירת אירוע | 10 | טופס מלא, היוצר הופך ל‑MM |
+| — | שמירה וטעינה של מצב | (מתרגיל 1) | נגיש מהרצועה העליונה |
+
+**בונוסים 1 ו‑2 מגיעים כבויים**, כפי שהתרגיל דורש: העיצוב הפותח הוא Classic ותיבת האנימציות אינה
+מסומנת.
+
+### עיצובים
+
+גיליון הסגנון פוצל לשניים. `guess-market.css` מחזיק אך ורק את מה שמרכיב את הפריסה — ריווח, עובי,
+גודל, יישור — וקובץ עיצוב מחזיק אך ורק צבע וגופן. כך עיצוב נוסף הוא קובץ קצר אחד ולא העתק של הגיליון
+כולו, ואין סיכוי שעיצוב ישבור את הפריסה בגלל כלל ששכח.
+
+`Night` ו‑`Parchment` קובעים את חמשת המשתנים שמהם ערכת ברירת המחדל של JavaFX גוזרת את כל השאר, ולכן
+הטבלאות, הכפתורים והתיבות נצבעים מחדש בלי שאף אחד מהם ייקרא בשמו.
+
+### אנימציות
+
+לוח שנבנה מחדש עולה בהדרגה; יתרה שהשתנתה גדלה ומתיישבת; לוח שפעולתו נדחתה מנענע ראש. הארוכה
+מבין השלוש רצה 320 מילישניות. כשהמתג כבוי הקוד אינו נוגע באף רכיב, וכל תנועה מחזירה את הרכיב
+למקומו בסיומה, כך שאנימציה שנקטעה אינה משאירה לוח שקוף למחצה או מוזז הצידה.
+
+### גרפים
+
+שני גרפים: מחיר כל אפשרות לאורך חיי האירוע, ויתרת המשתמש הנבחר לאורך הזמן. שניהם נמדדים לפי **מספר
+הדברים שקרו** ולא לפי השעון — הכל במערכת קורה בתוך שניות בודדות, ומול השעון כל הסיפור היה נמרח לקו
+אנכי אחד.
+
+אפשרות שלא נסחרה מעולם אינה מצוירת כאפס אלא אינה מצוירת כלל, ואם באירוע כולו לא נסחר דבר, הגרף אומר
+זאת במילים במקום להציג רשת ריקה עם ציר משכנע.
+
+### יצירת אירוע
+
+טופס מלא: שם, תיאור, עמלה ומועדה, רשימת תוצאות שניתן להוסיף ולהסיר ממנה, ושיטת מסחר שמחליפה את
+השדות שמתחתיה. **היוצר אינו נשאל** — הוא המשתמש הנבחר בלשונית, מאותו נימוק שבגללו המסחר יושב שם.
+
+יצירת אירוע אינה עולה דבר; **פתיחתו** היא שמוציאה כסף מכיסו של ה‑MM, וזו פעולה נפרדת שנעשית אחר כך.
+אירוע שנוצר מגיע במצב "Not started" ומתנהג בכל השאר בדיוק כמו אירוע שנטען מקובץ.
+
+הטופס פונה למנוע בזמן שהוא עדיין פתוח, ואם המנוע מסרב — ההודעה מוצגת והטופס נשאר בדיוק כפי שהוקלד.
 
 ---
 
 ## מבנה המערכת — שני מודולים
 
-**`engine`** — מנוע המערכת. מודול פסיבי לגמרי: הוא עונה לפקודות ומחזיר נתונים, ואינו יודע מי פונה
-אליו. אין בו אף קריאה ל‑`System.out` ואף קריאת קלט.
+**`engine`** — מנוע המערכת. פסיבי לגמרי: עונה לפקודות ומחזיר נתונים, ואינו יודע מי פונה אליו. אין בו
+אף קריאה ל‑`System.out` ואף קריאת קלט, ואין בו שום התייחסות ל‑JavaFX.
 
-**`ui`** — ממשק ה‑console. המודול האקטיבי שמניע את המערכת: מחזיק את לולאת התפריט, אוסף קלט ומדפיס פלט.
+**`uifx`** — ממשק המשתמש הגרפי. FXML עם Controllers.
 
-כל ההדפסות בתוכנית מרוכזות במחלקה אחת בלבד, `ConsolePrinter`, וכל קריאת הקלט במחלקה אחת בלבד,
-`ConsoleReader`.
+המנוע נחשף דרך ממשק אחד, `GuessMarketEngine`, ומחזיר אך ורק אובייקטי נתונים (DTO) בלתי משתנים.
+המופע הקונקרטי נוצר במקום אחד יחיד — `GuessMarketApp.start()`.
 
-המנוע נחשף לעולם דרך ממשק אחד, `GuessMarketEngine`, ומחזיר אך ורק אובייקטי נתונים (DTO) בלתי משתנים.
-המופע הקונקרטי נוצר במקום אחד יחיד בכל המערכת — `ConsoleApp.main()`. כך המנוע יוכל לשמש בהמשך גם
-ממשק JavaFX או שרת, בלי לשנות בו שורה.
-
-כל המספרים העוברים בממשק המנוע ספורים מ‑1, כך שהממשק מעביר בדיוק את מה שהמשתמש בחר, והמרת בסיס
-הספירה קורית במקום אחד.
+כל המספרים העוברים בממשק ספורים מ‑1, כך שהממשק מעביר בדיוק את מה שהמשתמש בחר.
 
 ### המרת DTO לעומק
 
-אף מחלקה בחבילת ה‑DTO אינה מפנה למודל. ההמרה יורדת עד הסוף, כך שאף קורא אינו יכול להגיע לאובייקט
-של המנוע דרך DTO שקיבל. גם חישוב אין בהם: סכומים ודגלים נישאים כערכים, וכך כל record נשאר מכל
-שקוראים ממנו בלבד.
+אף מחלקה בחבילת ה‑DTO אינה מפנה למודל, וההמרה יורדת עד הסוף. גם חישוב אין בהם: סכומים ודגלים
+נישאים כערכים, וכך כל record נשאר מכל שקוראים ממנו בלבד.
+
+`NewEventDto` הוא ה‑DTO היחיד שנוסע פנימה, והוא נושא ערכים פשוטים בדיוק כמו אלה שנוסעים החוצה. המסך
+אינו יכול להגיע למודל — הוא יכול רק לתאר מה הוא רוצה, ולתת למנוע להחליט אם זה מתאר אירוע אמיתי.
+
+### היררכיית האירועים
+
+`Event` היא מחלקה **sealed** מעל `LmsrEvent` ו‑`OrderBookEvent`. המשותף — זהות, עמלה, אפשרויות,
+חשבון, בעלים וסטטוס — יושב במחלקת הבסיס. המסחר עצמו שונה לחלוטין בין השתיים, ודחיסת שתיהן לממשק
+`TradingMethod` אחד הייתה יוצרת ממשק שחציו חסר משמעות לכל אחת מהן.
+
+---
+
+## הכסף בתרגיל 2 — שינויים מתרגיל 1
+
+| רגע | תרגיל 1 | תרגיל 2 |
+|---|---|---|
+| סבסוד LMSR | בטעינת הקובץ, מחשבון מנהל גלובלי | כאשר ה‑MM **פותח** את האירוע, מחשבונו האישי |
+| עמלת on-purchase | לחשבון האירוע | לחשבונו **האישי** של ה‑MM, מעל למחיר |
+| עמלת סגירה | לחשבון האירוע | לחשבונו **האישי** של ה‑MM |
+| יתרה בסגירה | לחשבון המנהל | LMSR: חוזרת ל‑MM. ספר פקודות: חשבון האירוע משלם למחזיקים |
+
+MM אינו יכול לפתוח אירוע שאין ביכולתו לממן. הבדיקה נעשית **לפני** שכסף כלשהו זז.
+
+**חסימת משתמש:** פעולה שמורידה את היתרה מתחת לאפס אינה נדחית — היא מתבצעת, היתרה באמת יורדת למינוס,
+ומאותו רגע המשתמש אינו יכול לעשות דבר. כסף שנכנס אחר כך אינו מבטל את החסימה. הכלל יושב בתוך
+`User.pay()`, כך שאין קורא שיכול להוציא כסף בשם משתמש ולשכוח להחיל אותו.
 
 ---
 
 ## חישוב LMSR
-
-המימוש עוקב במדויק אחר נספח א' של התרגיל:
 
 ```
 C(q)      = b * ln( sum of e^(qi/b) )
@@ -131,18 +194,31 @@ buy cost  = C(q after the purchase) - C(q before it)
 subsidy   = C(0,0) = b * ln(2)
 ```
 
-**יציבות נומרית:** שתי הנוסחאות מחושבות עם חיסור המעריך הגדול ביותר (log-sum-exp). בלי זה, קנייה
-גדולה ביחס ל‑`b` מבריחה את `Math.exp` לאינסוף וכל המספרים הופכים ל‑NaN. עם התיקון, גם קנייה של
-מיליון מניות על `b=100` עובדת כראוי.
+**יציבות נומרית:** שתי הנוסחאות מחושבות עם חיסור המעריך הגדול ביותר (log‑sum‑exp). בלעדיו, קנייה
+גדולה ביחס ל‑`b` מבריחה את `Math.exp` לאינסוף וכל המספרים הופכים ל‑NaN.
 
-המימוש נבדק מול הדוגמה המספרית שבנספח א':
+נבדק מול הדוגמה המספרית שבנספח א': סבסוד 69.31 ל‑b=100, עלות 62.01 לקניית 100 מניות Yes, וערכים
+0.73 / 0.27 אחריה.
 
-| נתון | ערך במערכת |
-|---|---|
-| סבסוד התחלתי, b=100 | 69.31 |
-| עלות קניית 100 מניות Yes | 62.01 |
-| ערך Yes לאחר הקנייה | 0.73 |
-| ערך No לאחר הקנייה | 0.27 |
+---
+
+## ספר הפקודות
+
+ספר אחד לכל אפשרות. הזמנה נכנסת מוצלבת מול הצד הנגדי של אותה אפשרות, **מחיר תחילה ובמחיר שווה
+ותק תחילה**. הזמנה אחת יכולה לבלוע כמה הזמנות ממתינות ברצף, והזמנה שמולאה חלקית נשארת עם יתרתה.
+
+**תקרת מחיר:** מניה בודדת לעולם אינה נמכרת ב‑`d` מלא, ולכן המקסימום הוא `d - 0.01`.
+
+**Mint** (רק כאשר `allow-mint`): קונה של אפשרות אחת וקונה של האפשרות הנגדית שמחיריהם מסתכמים לפחות
+ל‑`d` יוצרים ביניהם מניות **חדשות** — איש אינו מוותר על מניה, והכסף נכנס לחשבון האירוע. הכמות היא
+המינימום שבין השתיים. כאשר הסכום **עולה** על `d`, ההזמנה שכבר המתינה בספר מקבלת את המחיר שביקשה,
+וההזמנה הנכנסת משלימה את ההפרש — כלומר משלמת מחיר שווה או טוב יותר מזה שהייתה מוכנה לשלם.
+
+**סטטיסטיקה לכל אפשרות:** LAST, BID, ASK, MID ו‑SPREAD. כל אחד מהם **חסר** ולא אפס כשהספר אינו יכול
+לספק אותו, והמסך מציג מקף. אפס שם היה שקר.
+
+התנהגות הספר נבדקה מול `clob_simulation.html` שסופק, על אותו רצף הזמנות בדיוק — כולל ה‑mint
+ב‑0.58 + 0.42, וכולל האינוריאנטה שהעמלה אינה משנה את מחיר או כמות ההצלבה.
 
 ---
 
@@ -150,231 +226,66 @@ subsidy   = C(0,0) = b * ln(2)
 
 כל מקום שבו התרגיל לא קבע במדויק, מופיעה כאן הבחירה שנעשתה והנימוק לה.
 
-1. **גרסת Java** — במסמך התרגיל קיימת סתירה: בהנחיות הכלליות לכתיבת התרגיל נאמר Java 21, ובהנחיות
-   למימוש Guess Market (סעיף 7) נאמר Java 25. נבחרה גרסה 25, שהיא ההנחייה הספציפית לפרויקט הזה.
+1. **גרסת Java** — מסמך התרגיל בגרסה 3 אומר Java 25 בשני המקומות, והסתירה שהייתה בגרסה הקודמת
+   נפתרה. נבחרה 25.
 
-2. **תשלום בסגירת אירוע** — כל מניה של האפשרות הזוכה שווה 1.00, ומניה מפסידה שווה 0, כפי שנקבע
-   בנספח א'.
+2. **`commission` מול `comision`** — טבלת הסכמה עודכנה לאיות המלא, אך קבצי הדוגמה של תרגיל 1 עדיין
+   כותבים `comision`. הטוען מקבל את **שני האיותים**. זה לא עולה דבר ואינו יכול לשבור אף כיוון.
 
-3. **עמלת on-purchase** — מתווספת מעל למחיר המניות: הקונה משלם את עלות המניות ועוד האחוז מעליה,
-   ושני הסכומים נכנסים לחשבון האירוע. הפלט מפרט את שני המרכיבים בנפרד.
+3. **סדר `GM-events` ו‑`GM-users`** — הסכמה משתמשת ב‑`xs:all`, ולכן שני האלמנטים יכולים להופיע בכל
+   סדר ושניהם נדרשים. הטוען אינו מניח רצף.
 
-4. **עמלת on-close — פרשנות שנבחרה** — התרגיל מבקש "לנקות מסכום ההשקעה הכולל באפשרות הזוכה את אחוז
+4. **מכירה ב‑LMSR** — נספח א' בגרסה 3 אומר "הקניה (והמכירה) מתנהלות מול חשבון האירוע", ולכן מכירה
+   נתמכת. היא ראי של הקנייה — התקבול הוא `C(q) - C(q - quantity)` — ואינה גוררת עמלת on-purchase,
+   שכן פורמט הקובץ מחייב קונים בלבד.
+
+5. **הזמנות של משתמש חסום** — הזמנה שכבר ממתינה בספר **נשארת שם וניתנת להצלבה**. חסימה מונעת פעולות
+   **חדשות**; הזמנה שכבר מונחת היא התחייבות שסוחרים אחרים רואים ומתמחרים מולה, ומשיכתה בשקט הייתה
+   מזיזה את השוק לכולם בדיוק ברגע שבו למישהו נגמר הכסף.
+
+6. **מתי מתחילה השתתפות** — מרגע **הגשת** ההזמנה, ולא מרגע מילויה. מי שהניח הזמנה שמעולם לא הוצלבה
+   הוא משתתף באירוע. (זה היה באג אמיתי שנתפס בצילום מסך של המערכת ותוקן עם בדיקה שנכשלה תחילה.)
+
+7. **מחיר חסר** — LAST, BID, ASK, MID ו‑SPREAD מוצגים כמקף כשהספר אינו יכול לספק אותם, ולעולם לא
+   כאפס. אותו כלל חל על הגרפים.
+
+8. **מיקום המסחר** — בלשונית המשתמשים, לפי קובץ העיצוב, ומשום שכך זהות המבצע חד‑משמעית.
+
+9. **עמלת on-close — פרשנות שנבחרה** — התרגיל מבקש "לנקות מסכום ההשקעה הכולל באפשרות הזוכה את אחוז
    העמלה". ניתן לקרוא זאת בשתי דרכים: הכסף ששולם בפועל על המניות הזוכות, או הסכום שמגיע למנצחים.
-   נבחרה הקריאה השנייה: סך הזכייה הוא 1.00 לכל מניה זוכה, ממנו נגרע אחוז העמלה לטובת חשבון האירוע,
-   והיתרה מתחלקת למנצחים לפי כמות המניות שרכשו. הנימוק: נספח א' קובע מפורשות שב‑LMSR משולם דולר
-   לכל מניה זוכה.
+   נבחרה הקריאה השנייה, שכן נספח א' קובע מפורשות שמשולם שווי מלא לכל מניה זוכה. **זו הנקודה היחידה
+   שנותרה פתוחה לפרשנות בהגשה הזו.**
 
-5. **יתרת חשבון האירוע בסגירה** — לאחר תשלום למנצחים, מה שנותר בחשבון האירוע חוזר לחשבון מנהל
-   האירועים (MM) וחשבון האירוע מתאפס. זהו בדיוק מה שמתואר בנספח א': הכסף העודף חוזר לכיסו של מגדיר
-   האירוע ומקטין בפועל את הסבסוד ששילם.
+10. **יצירת אירוע אינה עולה כסף** — היא רק מתארת אירוע. הפתיחה היא שגובה, וזו פעולה נפרדת. לכן אין
+    בדיקת יכולת מימון בזמן היצירה.
 
-6. **חשבון ה‑MM במינוס** — בטעינת קובץ תקין חשבון מנהל האירועים מתאפס, וממנו משולם הסבסוד של כל
-   אירוע. לכן היתרה שלו שלילית, ומשמעותה "כמה השקיע ה‑MM עד כה". זה מצב תקין ולא שגיאה.
+11. **מזהה של אירוע שנוצר** — אחד מעל למזהה הגבוה ביותר שבשימוש, כך שאירוע שנוצר אינו יכול להתנגש
+    באירוע שנטען.
 
-7. **משתמש יחיד ללא יתרה** — בתרגיל זה קיים משתמש אחד בלבד, ולסכמה אין עדיין אלמנט `initial-cash`.
-   לכן למשתמש אין יתרה ואין מסגרת אשראי, וקנייה לא נדחית אי פעם מחוסר כסף. מחלקת `Account` נבנתה
-   כבר כך שתשמש גם לחשבונות משתמשים בתרגיל הבא.
+12. **ולידציה של אירוע שנוצר** — כל כלל על מהו אירוע תקין כבר יושב ב‑constructors של המודל, והמנוע
+    שואל אותם במקום לחזור עליהם. זו הדרך היחידה שבה השניים אינם יכולים להיפרד. המנוע מוסיף רק את מה
+    שרק הוא יכול לדעת: שהיוצר קיים, שהשם אינו ריק, ושלכל תוצאה יש שם.
 
-8. **מספור האירועים** — לכל אירוע מספר יציב לפי מקומו בקובץ, החל מ‑1, והוא זהה בכל הפקודות. לכן
-   רשימת האירועים הפעילים (פקודות 4 ו‑5) מציגה רק את המספרים של האירועים שנותרו פתוחים, והשאלה
-   מציגה במפורש את המספרים החוקיים. הבחירה נעשתה כדי שאותו אירוע לא יקבל מספרים שונים בתפריטים
-   שונים. אפשרויות האירוע ממוספרות תמיד 1 ו‑2.
+13. **הצגת מספרים** — שתי ספרות אחרי הנקודה, עיגול לתצוגה בלבד, `Locale.US` מפורש כדי שעל מערכת
+    בעלת locale עברי לא יודפס פסיק במקום נקודה עשרונית.
 
-9. **שמות אלמנטים ב‑XML** — חיפוש שמות אלמנטים ומאפיינים מתבצע בלי להבדיל בין אות גדולה לקטנה. זו
-   החמרה מכוונת שלא עולה דבר ומונעת כשל טעינה שכל סיבתו היא רישום אותיות. ערכי האלמנטים עצמם
-   נשמרים כמו שהם, פרט למאפיין `type` של העמלה, שהוא case insensitive לפי הגדרת התרגיל.
-
-10. **רווחים בערכים** — רווחים בתחילת ערך ובסופו מוסרים (`trim`), ורווחים בתוך מחרוזת נשמרים.
-
-11. **מספר האפשרויות** — נדרשות בדיוק שתי אפשרויות לכל אירוע, והן חייבות להיות שונות זו מזו. שתי
-    אפשרויות זהות בשמן היו הופכות את הבחירה לחסרת משמעות.
-
-12. **שיטת מסחר שאינה נתמכת** — אירוע שמוגדר עם `GM-order-book` נדחה עם הודעה מפורשת שהגרסה הנוכחית
-    תומכת רק ב‑LMSR, ולא בכשל סתום.
-
-13. **הצגת מספרים** — כל מספר עשרוני מוצג עם שתי ספרות אחרי הנקודה, והעיגול מתבצע לתצוגה בלבד —
-    החישובים עצמם נשמרים בדיוק מלא כדי ששגיאות עיגול לא ייצברו. הפורמט מוגדר מפורשות עם
-    `Locale.US`, כדי שעל מערכת בעלת locale עברי לא יודפס פסיק במקום נקודה עשרונית. סכום הקטן מחצי
-    אגורה מוצג כ‑`0.00` ולא עם סימן מינוס.
-
-14. **סיומת קובץ השמירה** — המערכת מוסיפה בעצמה את הסיומת `.gm` לנתיב שהמשתמש נוקב, כפי שהבונוס
-    מבקש. נתיב שכבר מכיל את הסיומת מתקבל כמו שהוא ולא מקבל סיומת שנייה.
-
-15. **מנגנון השמירה** — ממומש ב‑Java Serialization. המשמעות היא שקובץ שנשמר בגרסה אחת של המערכת לא
-    ייקרא בגרסה אחרת; במקרה כזה מוצגת הודעה מסבירה ולא חריגה.
-
-16. **צבעים וניקוי מסך** — לפי דרישת התרגיל: אין שימוש בצבעים ואין ניקוי מסך בין פקודה לפקודה. כל
-    הפלט ב‑ASCII פשוט ובאנגלית בלבד. לא נעשה שימוש באף ספריית צד שלישי — המערכת נשענת על ה‑JDK
-    בלבד, ובפרט קריאת ה‑XML ממומשת עם DOM המובנה ב‑JDK.
-
-17. **סיום קלט** — אם הקלט נגמר באמצע (למשל בהרצה מתוך קובץ פקודות), המערכת מודיעה על כך ונסגרת
-    בסדר במקום לקרוס.
-
----
-
-## בדיקת תקינות קלט
-
-המערכת לא קורסת ולא מדפיסה חריגות בשום מצב. ברמת התפריט, קלט שאינו מספר או שאינו בטווח מוביל
-להודעה ספציפית ולבקשה חוזרת, ולא ליציאה מהפקודה.
-
-בבדיקת קובץ ה‑XML, תקלות שמונעות מקריאה בכלל — קובץ שאינו קיים, סיומת שגויה, תוכן שאינו XML תקין —
-עוצרות מיד. כל שאר הבדיקות נאספות: כל אירוע נבדק במלואו, וכל התקלות מדווחות בדוח אחד ממוספר. כך
-ניסיון טעינה אחד מגלה את כל מה שפגום בקובץ, ולא תקלה אחת בכל ניסיון.
-
-הבדיקות המתבצעות: קיום הקובץ וניתנותו לקריאה; סיומת `.xml`; תקינות ה‑XML; אלמנט שורש נכון; קיום כל
-האלמנטים והמאפיינים החובה; `id` שלם וייחודי לכל אירוע; עמלה שלמה בטווח 0 עד 90; סוג עמלה חוקי;
-בדיוק שתי אפשרויות שונות ולא ריקות; שיטת מסחר נתמכת; ו‑`b` שלם וחיובי.
-
-הודעות השגיאה מצביעות על האירוע לפי מספרו ושמו, ואומרות מה בדיוק פגום ומה היה אמור להיות. לדוגמה:
-
-```
-The file was not loaded. 5 problems were found:
-  1. Event #1 ("Commission Out Of Range"): its commission is 150, but a
-     commission must be between 0 and 90.
-  2. Event #2 ("Too Many Options"): it has 3 options, but every event must
-     have exactly 2.
-  3. Event #3: it has no name attribute.
-  4. Event #3: its <GM-LMSR> element has no <b> value. The liquidity index
-     must be a positive whole number.
-  5. Event #4 ("Id Already Taken"): its id is 2, which is already used by
-     Event #2 ("Too Many Options"). Every event must have an id of its own.
-  Nothing has changed: the system is still using the 3 events loaded earlier.
-```
-
-טעינה של קובץ תקול אינה פוגעת במידע שכבר טעון. מבנית, המצב החדש נבנה עד סופו לצד הקיים, ומחליף
-אותו רק אם לא נמצאה בו אף תקלה.
-
----
-
-## קבצי הבדיקה
-
-בתיקיית `test-files` מצורפים קבצי XML שנועדו להקל על הבדיקה. כל קובץ תקול מכיל תקלה אחת בלבד, כדי
-שניתן לראות את ההודעה המתאימה לה בנפרד. בראש כל קובץ הערה המסבירה מה התקלה בו.
-
-| קובץ | מה הוא בודק |
-|---|---|
-| `events-basic.xml` | שלושה אירועים תקינים, שתי שיטות גבייה, שלושה ערכי b, מזהים לא עוקבים |
-| `events-single.xml` | אירוע בודד, עמלה 0, ורווחים מיותרים שצריכים להיעלם |
-| `events-large-b.xml` | שוק נזיל מאוד (b=10000) לצד שוק תזזיתי (b=1) |
-| `with spaces/` | קובץ תקין בתיקייה ובשם קובץ שמכילים רווחים |
-| `bad-duplicate-ids.xml` | שני אירועים עם אותו id |
-| `bad-commission-too-high.xml` | עמלה 95 |
-| `bad-commission-negative.xml` | עמלה שלילית |
-| `bad-commission-type.xml` | סוג עמלה שאינו קיים |
-| `bad-three-options.xml` | שלוש אפשרויות |
-| `bad-one-option.xml` | אפשרות אחת |
-| `bad-liquidity-zero.xml` | b שווה 0 |
-| `bad-liquidity-text.xml` | b שאינו מספר |
-| `bad-missing-description.xml` | אלמנט חובה חסר |
-| `bad-order-book.xml` | שיטת מסחר שאינה נתמכת בתרגיל זה |
-| `bad-malformed.xml` | תוכן שאינו XML תקין |
-| `bad-wrong-root.xml` | XML תקין שאינו מתאר Guess Market |
-| `bad-many-problems.xml` | חמש תקלות בבת אחת, לבדיקת הדוח המצטבר |
-| `not-an-xml-file.txt` | סיומת שאינה xml |
+14. **שמות אלמנטים ב‑XML** — חיפוש שמות אלמנטים ומאפיינים בלי הבדל בין אות גדולה לקטנה. החמרה
+    מכוונת שלא עולה דבר ומונעת כשל טעינה שכל סיבתו רישום אותיות.
 
 ---
 
 ## בדיקות
 
-במקביל לפיתוח נכתבו 68 בדיקות JUnit 5 על מנוע המערכת, וכולן עוברות. הבדיקות אינן חלק מההגשה
-ואינן משפיעות על ההרצה. נבדקו בין השאר: נוסחאות LMSR מול המספרים שבנספח א', שתי שיטות העמלה, סגירת
-אירוע ותשלום, כל קבצי הבדיקה התקולים, ומעגל שמירה־טעינה מלא.
+**192 בדיקות JUnit 5**, בפיתוח מונחה בדיקות: הבדיקה נכתבת ראשונה, נצפית נכשלת, ורק אז נכתב הקוד.
 
-בנוסף, ההגשה נבדקה בתיקייה נקייה מחוץ לפרויקט, בדיוק באותו אופן שבו הבודק מריץ: שני ה‑jar,
-`run.bat` ותיקיית הבדיקה בלבד.
+מה שמכוסה: מתמטיקת LMSR מול נספח א'; עמלות; אחזקות; מחזור החיים של אירוע; בעלות MM וחסימת משתמשים;
+הצלבה בספר הפקודות על פני כמה הזמנות ממתינות, מילוי חלקי, קדימות מחיר ואז ותק, כלל ה‑mint כולל
+המקרה שבו הסכום עולה על `d`, ותקרת המחיר; טעינת XML וכל הוולידציות; ההסטוריה ששני הגרפים מציירים
+ממנה; יצירת אירוע; ושמירה ושחזור של המצב כולו.
 
----
+**הקבצים הרשמיים** נעוצים בבדיקות: `small.xml` ו‑`multiple.xml` נטענים עם המשתמשים, ה‑MM והשיטות
+הנכונים; `error-2.xml` נדחה בגלל `initial-cash` של אפס אצל אברום; `error-3.xml` נדחה **גם** בגלל MM
+שמצביע על אירוע 12 שאינו קיים **וגם** בגלל אירוע 2 שנותר בלי MM.
 
-# Appendix — class documentation
-
-באנגלית, כדי ששמות המחלקות והחבילות יופיעו בדיוק כפי שהם בקוד.
-
-## Module: engine
-
-The system engine. Passive by design: it answers requests and returns data, and knows nothing about
-who is calling it. It contains no printing and no input reading at all.
-
-### `gm.engine.api` — the surface a user interface talks to
-
-| Class | Responsibility |
-|---|---|
-| `GuessMarketEngine` | The single interface exposing every command. All numbers crossing it are counted from 1. |
-| `GuessMarketException` | Base failure type. Its message is already written for a person to read. |
-| `FileLoadException` | An events file was rejected. Carries the full list of problems found. |
-| `NoFileLoadedException` | A command was asked for that needs a loaded file. |
-| `InvalidSelectionException` | An event or option number that does not exist, or a non positive quantity. |
-| `EventClosedException` | Trading on, or closing, an event that is already decided. |
-| `PersistenceException` | Saving or restoring a system state failed. |
-
-### `gm.engine.api.dto` — immutable records returned to callers
-
-Nothing in this package refers to the model. The conversion goes all the way down, so no caller can
-reach an engine object through a DTO it was handed. Nothing here computes anything either: totals and
-flags are carried as values, which keeps every record a container that is only read from.
-
-| Record | Contents |
-|---|---|
-| `EventInfoDto` | Number, id, name, description, option names, trading method, plus the commission and the status already broken down into plain values. |
-| `OptionStateDto` | One option: its number, name, current value and shares bought. |
-| `TradeDto` | One purchase: option, quantity, cost, commission and total. |
-| `MarketStateDto` | The full picture of an event: options, accounts, trades newest first, and whether it is closed. |
-| `PurchaseResultDto` | The receipt for a purchase, whether the commission falls due at closing time, and the state of the event afterwards. |
-| `LoadResultDto` | The file read, how many events it held, and the total subsidy paid. |
-
-### `gm.engine.model` — the domain
-
-| Class | Responsibility |
-|---|---|
-| `Event` | One event: its details, options, method, account and history. Owns buying and closing, and is the only place trading changes anything. |
-| `EventOption` | One outcome and the shares bought of it. Its share count can only be changed from inside the package. |
-| `Account` | A balance, with deposit, withdraw and drainInto. Used for event accounts and the market maker, and ready for user accounts. |
-| `Trade` | One completed purchase: option, quantity, cost and commission. |
-| `Commission` | How much commission an event charges and when. Validates the 0 to 90 range. |
-| `CommissionType` | `ON_PURCHASE` and `ON_CLOSE`. Each constant implements both charging points, so the two policies sit side by side instead of spreading through the code as conditionals. |
-| `EventStatus` | `OPEN` or `CLOSED`, with the wording used on screen. |
-| `SystemState` | The loaded events plus the market maker account. Building a state also funds it, so a state whose events were never paid for cannot exist. |
-
-### `gm.engine.method` — pricing
-
-| Class | Responsibility |
-|---|---|
-| `TradingMethod` | Sealed interface for the pricing mechanism of an event. Adding the order book later means adding one permitted implementation and nothing else. |
-| `LmsrMethod` | The LMSR cost function and option values, evaluated with a log-sum-exp shift so a large purchase cannot overflow to infinity. |
-
-### `gm.engine.xml` — reading events files
-
-| Class | Responsibility |
-|---|---|
-| `EventsFileLoader` | Reads a file with the DOM parser built into the JDK and validates it in two passes: faults that make the file unreadable stop at once, everything else is gathered and reported together. |
-| `EventNodeReader` | Turns one `GM-event` element into an `Event`, examining every part even after something has gone wrong so all its faults are reported at once. |
-| `XmlNode` | A forgiving view over one DOM element: names matched without regard to case, text returned trimmed, anything missing returned as an empty optional. |
-
-### `gm.engine.impl` and `gm.engine.persistence`
-
-| Class | Responsibility |
-|---|---|
-| `GuessMarketEngineImpl` | Holds the loaded state, checks every selection, and builds the data objects returned. Replaces the loaded state only once a new one has been built without complaint. |
-| `StateSerializer` | Writes and reads a saved system with Java serialization, adding the `.gm` extension itself. |
-
-## Module: ui
-
-The console front end, and the active side of the program: it drives the whole system by asking the
-engine to do things. Every print in the program happens in `ConsolePrinter` and every read in
-`ConsoleReader`.
-
-| Class | Responsibility |
-|---|---|
-| `ConsoleApp` | The starting point. Shows the menu, hands each choice to its command, and turns every failure into a message. An unanticipated fault ends the command in hand, never the program. |
-| `MenuOption` | The commands and their order. A command's number is its position in this list, so the printed menu and the accepted numbers cannot drift apart. |
-| `MenuCommand` | Abstract base of a command, holding the engine, reader and printer, and the shared step of choosing an event from a list. |
-| `LoadEventsFileCommand` | Command 1. Reports a rejected file together with what is still loaded. |
-| `ShowEventsCommand` | Command 2. |
-| `ShowMarketStateCommand` | Command 3. |
-| `ParticipateCommand` | Command 4. Offers only open events and shows the standing before asking for any commitment. |
-| `CloseEventCommand` | Command 5. Shows the whole event before the outcome is chosen, since closing cannot be undone. |
-| `SaveSystemCommand` | Command 6, the bonus. |
-| `LoadSystemCommand` | Command 7, the bonus. |
-| `ConsoleReader` | Collects input and refuses to pass anything on until it makes sense. Reads whole lines, which is what lets a path contain spaces. |
-| `ConsolePrinter` | Every layout in the program. Formats all numbers with `Locale.US` so a decimal point is never printed as a comma. |
-| `InputEndedException` | There is no more input. Lets every reader keep a plain return type and gives the main loop one place to notice. |
+המסך עצמו אומת ויזואלית — הצילומים תפסו שני באגים אמיתיים שבדיקה לא הייתה תופסת: משתתף חסר בטבלת
+ההשתתפות, ושורה נבחרה שהפכה בלתי קריאה בעיצוב הכהה ברגע שהטבלה איבדה את הפוקוס.
