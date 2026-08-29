@@ -140,6 +140,7 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
             totalPaidOut += net;
         }
         account.drainInto(marketMaker.account());
+        onClosed();
     }
 
     /** What it costs this event's market maker to open it. */
@@ -159,6 +160,14 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
      * an order book hands the market maker the stock they have just bought.
      */
     protected void onOpened() {
+        // Nothing by default.
+    }
+
+    /**
+     * Anything the event itself must do once it has been decided. LMSR has nothing to do; an order
+     * book cancels whatever never found a match, since it can never be filled now.
+     */
+    protected void onClosed() {
         // Nothing by default.
     }
 
