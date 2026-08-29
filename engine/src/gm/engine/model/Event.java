@@ -41,7 +41,8 @@ public final class Event implements Serializable {
     @SuppressWarnings("serial")
     private final List<Trade> history = new ArrayList<>();
 
-    private EventStatus status = EventStatus.ACTIVE;
+    private EventStatus status = EventStatus.NOT_STARTED;
+    private User marketMaker;
     private EventOption winningOption;
     private double commissionCollected;
     private double totalPaidOut;
@@ -62,13 +63,43 @@ public final class Event implements Serializable {
     }
 
     /**
-     * Moves the subsidy this event needs from the market maker into the event account. Called once,
-     * when the system loads the event.
+     * Names the user who runs this event. The file lists events before it lists users, so the market
+     * maker arrives after the event itself and can only ever be named once.
      */
-    public void fundSubsidy(Account marketMaker) {
-        double subsidy = method.initialPot(options.size());
-        marketMaker.withdraw(subsidy);
-        account.deposit(subsidy);
+    public void assignMarketMaker(User owner) {
+        if (marketMaker != null) {
+            throw new IllegalStateException("The event \"" + name + "\" already belongs to "
+                    + marketMaker.name() + ".");
+        }
+        this.marketMaker = Objects.requireNonNull(owner, "owner");
+    }
+
+    public User marketMaker() {
+        return marketMaker;
+    }
+
+    /** What it costs the market maker to open this event. */
+    public double openingCost() {
+        return method.initialPot(options.size());
+    }
+
+    /**
+     * Starts the event trading, at the market maker's expense.
+     * <p>
+     * The money is checked before any of it moves, so a market maker who cannot afford the event is
+     * turned away without being charged and, in particular, without being blocked for overspending.
+     */
+    public void open(User actor) {
+        requireMarketMaker(actor, "open");
+        requireMove(EventStatus.ACTIVE, "opened");
+        double cost = openingCost();
+        if (marketMaker.account().balance() < cost) {
+            throw new IllegalStateException(marketMaker.name() + " cannot open \"" + name + "\": it costs "
+                    + cost + " and the account holds " + marketMaker.account().balance() + ".");
+        }
+        marketMaker.pay(cost);
+        account.deposit(cost);
+        status = EventStatus.ACTIVE;
     }
 
     /**
@@ -100,8 +131,9 @@ public final class Event implements Serializable {
      * @param winningOptionIndex the zero based index of the option the event ended on
      * @param marketMaker        the account that funded the subsidy
      */
-    public void close(int winningOptionIndex, Account marketMaker) {
-        requireOpen("The event cannot be closed");
+    public void close(User actor, int winningOptionIndex) {
+        requireMarketMaker(actor, "close");
+        requireMove(EventStatus.CLOSED, "closed");
         winningOption = options.get(winningOptionIndex);
         status = EventStatus.CLOSED;
 
@@ -111,7 +143,7 @@ public final class Event implements Serializable {
         commissionCollected += closingFee;
 
         account.withdraw(totalPaidOut);
-        account.drainInto(marketMaker);
+        account.drainInto(marketMaker.account());
     }
 
     /** The current value of one option, between 0 and 1. */
@@ -191,7 +223,25 @@ public final class Event implements Serializable {
 
     private void requireOpen(String whatFailed) {
         if (!isOpen()) {
-            throw new IllegalStateException(whatFailed + " because the event \"" + name + "\" is already closed.");
+            throw new IllegalStateException(whatFailed + " because the event \"" + name
+                    + "\" is " + status.displayName().toLowerCase(java.util.Locale.US) + ".");
+        }
+    }
+
+    private void requireMarketMaker(User actor, String what) {
+        if (marketMaker == null) {
+            throw new IllegalStateException("The event \"" + name + "\" has no market maker to " + what + " it.");
+        }
+        if (actor != marketMaker) {
+            throw new IllegalStateException("Only " + marketMaker.name() + " can " + what + " \"" + name
+                    + "\", and the request came from " + (actor == null ? "nobody" : actor.name()) + ".");
+        }
+    }
+
+    private void requireMove(EventStatus next, String what) {
+        if (!status.canMoveTo(next)) {
+            throw new IllegalStateException("The event \"" + name + "\" cannot be " + what
+                    + " because it is " + status.displayName().toLowerCase(java.util.Locale.US) + ".");
         }
     }
 }

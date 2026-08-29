@@ -23,10 +23,15 @@ public final class SystemState implements Serializable {
 
     public SystemState(List<Event> events) {
         this.events = List.copyOf(events);
-        for (Event event : this.events) {
-            event.fundSubsidy(marketMakerAccount);
-        }
-        this.totalSubsidy = -marketMakerAccount.balance();
+        this.totalSubsidy = this.events.stream().mapToDouble(Event::openingCost).sum();
+    }
+
+    /**
+     * What opening every event would cost its market maker, added up. Nothing has been paid yet: in
+     * this version an event is funded when its market maker opens it, not when the file is read.
+     */
+    public double costOfOpeningEverything() {
+        return totalSubsidy;
     }
 
     /** The events, in the order they appeared in the file. */

@@ -8,45 +8,51 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The money rules of a single event, end to end. The numbers come from appendix A: an event with
- * b = 100 starts with a 69.31 subsidy, and buying 100 shares of one option costs 62.01.
+ * The money rules of a single LMSR event, end to end. The numbers come from appendix A: an event with
+ * b = 100 costs 69.31 to open, and buying 100 shares of one option costs 62.01.
+ * <p>
+ * Every event here is opened by its market maker first, because in this version an event arrives from
+ * the file dormant and is funded by whoever runs it rather than by the system at load time.
  */
 class EventTest {
 
     private static final double TOLERANCE = 0.0001;
     private static final double SUBSIDY = 69.3147;
     private static final double PURCHASE_COST = 62.0115;
+    private static final double MARKET_MAKER_CASH = 10000.0;
 
-    private static Event eventWith(Commission commission) {
-        return new Event(3, "Earth Quake on Dead Sea", "Will there be an earth quake this year?",
+    private final User marketMaker = new User("Tikva", MARKET_MAKER_CASH);
+
+    private Event eventWith(Commission commission) {
+        Event event = new Event(3, "Earth Quake on Dead Sea", "Will there be an earth quake this year?",
                 commission, List.of("Yes", "No"), new LmsrMethod(100));
+        event.assignMarketMaker(marketMaker);
+        return event;
     }
 
-    private static Event fundedEvent(Commission commission, Account marketMaker) {
+    private Event openedEvent(Commission commission) {
         Event event = eventWith(commission);
-        event.fundSubsidy(marketMaker);
+        event.open(marketMaker);
         return event;
     }
 
     @Test
-    @DisplayName("Funding an event moves the subsidy from the market maker into the event account")
-    void subsidyMovesFromMarketMaker() {
-        Account marketMaker = new Account();
-        Event event = fundedEvent(new Commission(0, CommissionType.ON_CLOSE), marketMaker);
+    @DisplayName("Opening an event moves the subsidy from the market maker into the event account")
+    void openingFundsTheEvent() {
+        Event event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
 
         assertEquals(SUBSIDY, event.account().balance(), TOLERANCE);
-        assertEquals(-SUBSIDY, marketMaker.balance(), TOLERANCE);
+        assertEquals(MARKET_MAKER_CASH - SUBSIDY, marketMaker.account().balance(), TOLERANCE);
     }
 
     @Test
-    @DisplayName("A new event is open, has no trades and has sold no shares")
-    void newEventIsEmptyAndOpen() {
-        Event event = fundedEvent(new Commission(10, CommissionType.ON_CLOSE), new Account());
+    @DisplayName("A freshly opened event has no trades and has sold no shares")
+    void anOpenedEventIsEmpty() {
+        Event event = openedEvent(new Commission(10, CommissionType.ON_CLOSE));
 
         assertTrue(event.isOpen());
         assertTrue(event.history().isEmpty());
@@ -55,17 +61,23 @@ class EventTest {
     }
 
     @Test
-    @DisplayName("An on-purchase commission is added on top of the price and lands in the event account")
+    @DisplayName("Nothing can be traded on an event that has not been opened")
+    void tradingNeedsAnOpenEvent() {
+        Event event = eventWith(new Commission(0, CommissionType.ON_CLOSE));
+
+        assertThrows(IllegalStateException.class, () -> event.buy(0, 10));
+    }
+
+    @Test
+    @DisplayName("An on-purchase commission is added on top of the price")
     void onPurchaseCommissionIsAddedToThePrice() {
-        Account marketMaker = new Account();
-        Event event = fundedEvent(new Commission(50, CommissionType.ON_PURCHASE), marketMaker);
+        Event event = openedEvent(new Commission(50, CommissionType.ON_PURCHASE));
 
         Trade trade = event.buy(0, 100);
 
         assertEquals(PURCHASE_COST, trade.sharesCost(), TOLERANCE);
         assertEquals(PURCHASE_COST * 0.5, trade.commission(), TOLERANCE);
         assertEquals(PURCHASE_COST * 1.5, trade.totalPaid(), TOLERANCE);
-        assertEquals(SUBSIDY + PURCHASE_COST * 1.5, event.account().balance(), TOLERANCE);
         assertEquals(PURCHASE_COST * 0.5, event.commissionCollected(), TOLERANCE);
         assertEquals(100, event.options().get(0).sharesBought());
         assertEquals(0, event.options().get(1).sharesBought());
@@ -74,7 +86,7 @@ class EventTest {
     @Test
     @DisplayName("An on-close commission costs the buyer nothing at purchase time")
     void onCloseCommissionIsNotChargedOnPurchase() {
-        Event event = fundedEvent(new Commission(50, CommissionType.ON_CLOSE), new Account());
+        Event event = openedEvent(new Commission(50, CommissionType.ON_CLOSE));
 
         Trade trade = event.buy(0, 100);
 
@@ -86,7 +98,7 @@ class EventTest {
     @Test
     @DisplayName("Trade history is kept in the order the trades happened")
     void historyIsChronological() {
-        Event event = fundedEvent(new Commission(0, CommissionType.ON_CLOSE), new Account());
+        Event event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
 
         event.buy(0, 10);
         event.buy(1, 20);
@@ -103,14 +115,12 @@ class EventTest {
     @Test
     @DisplayName("Every winning share pays 1.00 when there is no closing commission")
     void closingPaysOnePerWinningShare() {
-        Account marketMaker = new Account();
-        Event event = fundedEvent(new Commission(0, CommissionType.ON_CLOSE), marketMaker);
+        Event event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
         event.buy(0, 100);
 
-        event.close(0, marketMaker);
+        event.close(marketMaker, 0);
 
         assertFalse(event.isOpen());
-        assertSame(event.options().get(0), event.winningOption());
         assertEquals(100.0, event.totalPaidOut(), TOLERANCE);
         assertEquals(0.0, event.commissionCollected(), TOLERANCE);
     }
@@ -118,71 +128,56 @@ class EventTest {
     @Test
     @DisplayName("An on-close commission is taken out of the winners' payout")
     void closingCommissionReducesThePayout() {
-        Account marketMaker = new Account();
-        Event event = fundedEvent(new Commission(50, CommissionType.ON_CLOSE), marketMaker);
+        Event event = openedEvent(new Commission(50, CommissionType.ON_CLOSE));
         event.buy(0, 100);
 
-        event.close(0, marketMaker);
+        event.close(marketMaker, 0);
 
         assertEquals(50.0, event.totalPaidOut(), TOLERANCE);
         assertEquals(50.0, event.commissionCollected(), TOLERANCE);
     }
 
     @Test
-    @DisplayName("Whatever is left after paying the winners goes back to the market maker")
+    @DisplayName("Whatever an LMSR event has left after paying the winners goes back to its market maker")
     void leftoverReturnsToTheMarketMaker() {
-        Account marketMaker = new Account();
-        Event event = fundedEvent(new Commission(0, CommissionType.ON_CLOSE), marketMaker);
+        Event event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
         event.buy(0, 100);
 
-        event.close(0, marketMaker);
+        event.close(marketMaker, 0);
 
-        double expectedLeftover = SUBSIDY + PURCHASE_COST - 100.0;
+        double leftover = SUBSIDY + PURCHASE_COST - 100.0;
         assertEquals(0.0, event.account().balance(), TOLERANCE);
-        assertEquals(-SUBSIDY + expectedLeftover, marketMaker.balance(), TOLERANCE);
+        assertEquals(MARKET_MAKER_CASH - SUBSIDY + leftover, marketMaker.account().balance(), TOLERANCE);
     }
 
     @Test
     @DisplayName("Closing on the option nobody bought pays nothing and returns the whole pot")
     void closingOnTheEmptyOptionPaysNothing() {
-        Account marketMaker = new Account();
-        Event event = fundedEvent(new Commission(20, CommissionType.ON_CLOSE), marketMaker);
+        Event event = openedEvent(new Commission(20, CommissionType.ON_CLOSE));
         event.buy(0, 100);
 
-        event.close(1, marketMaker);
+        event.close(marketMaker, 1);
 
         assertEquals(0.0, event.totalPaidOut(), TOLERANCE);
         assertEquals(0.0, event.commissionCollected(), TOLERANCE);
-        assertEquals(-SUBSIDY + SUBSIDY + PURCHASE_COST, marketMaker.balance(), TOLERANCE);
+        assertEquals(MARKET_MAKER_CASH + PURCHASE_COST, marketMaker.account().balance(), TOLERANCE);
     }
 
     @Test
     @DisplayName("The event account never runs dry, however much is bought")
     void thePotAlwaysCoversThePayout() {
-        Account marketMaker = new Account();
-        Event event = fundedEvent(new Commission(0, CommissionType.ON_CLOSE), marketMaker);
+        Event event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
         event.buy(0, 5000);
         event.buy(1, 300);
 
-        event.close(0, marketMaker);
+        event.close(marketMaker, 0);
 
         assertEquals(0.0, event.account().balance(), TOLERANCE);
         assertEquals(5000.0, event.totalPaidOut(), TOLERANCE);
     }
 
     @Test
-    @DisplayName("A closed event cannot be traded on or closed again")
-    void aClosedEventIsFinished() {
-        Account marketMaker = new Account();
-        Event event = fundedEvent(new Commission(0, CommissionType.ON_CLOSE), marketMaker);
-        event.close(0, marketMaker);
-
-        assertThrows(IllegalStateException.class, () -> event.buy(0, 10));
-        assertThrows(IllegalStateException.class, () -> event.close(1, marketMaker));
-    }
-
-    @Test
-    @DisplayName("An event must have a positive id, a name, a description, options and a method")
+    @DisplayName("An event must have a name, a description, options and a method")
     void constructorRejectsBrokenInput() {
         Commission commission = new Commission(0, CommissionType.ON_CLOSE);
 

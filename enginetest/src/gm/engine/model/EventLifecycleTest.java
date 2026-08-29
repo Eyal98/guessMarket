@@ -1,0 +1,136 @@
+package gm.engine.model;
+
+import gm.engine.method.LmsrMethod;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Who may start and finish an event, and when.
+ * <p>
+ * Exercise 2 puts a market maker in charge of every event. An event arrives from the file dormant,
+ * its market maker alone may open it — paying for the privilege out of their own pocket — and its
+ * market maker alone may decide it. Nobody else can do either, and neither can happen twice.
+ */
+class EventLifecycleTest {
+
+    private static final double TOLERANCE = 0.0001;
+    private static final double SUBSIDY_AT_B_100 = 69.3147;
+
+    private final User marketMaker = new User("Tikva", 10000);
+    private final User bystander = new User("Menash", 100);
+
+    private Event event() {
+        return new Event(1, "Mujtaba is Dead", "Is he?",
+                new Commission(5, CommissionType.ON_PURCHASE),
+                List.of("Hell Yea !", "No way !"), new LmsrMethod(100));
+    }
+
+    private Event eventOwnedByTheMarketMaker() {
+        Event event = event();
+        event.assignMarketMaker(marketMaker);
+        return event;
+    }
+
+    @Test
+    @DisplayName("An event arrives from the file dormant, with nothing in its account")
+    void anEventArrivesDormant() {
+        Event event = eventOwnedByTheMarketMaker();
+
+        assertEquals(EventStatus.NOT_STARTED, event.status());
+        assertEquals(0.0, event.account().balance(), TOLERANCE);
+        assertEquals(10000.0, marketMaker.account().balance(), TOLERANCE);
+    }
+
+    @Test
+    @DisplayName("An event knows which user runs it, and is told only once")
+    void theMarketMakerIsAssignedOnce() {
+        Event event = eventOwnedByTheMarketMaker();
+
+        assertSame(marketMaker, event.marketMaker());
+        assertThrows(IllegalStateException.class, () -> event.assignMarketMaker(bystander));
+    }
+
+    @Test
+    @DisplayName("Opening it moves the subsidy out of the market maker's own pocket")
+    void openingChargesTheMarketMaker() {
+        Event event = eventOwnedByTheMarketMaker();
+
+        event.open(marketMaker);
+
+        assertEquals(EventStatus.ACTIVE, event.status());
+        assertEquals(SUBSIDY_AT_B_100, event.account().balance(), TOLERANCE);
+        assertEquals(10000.0 - SUBSIDY_AT_B_100, marketMaker.account().balance(), TOLERANCE);
+    }
+
+    @Test
+    @DisplayName("Nobody but the market maker may open an event")
+    void onlyTheMarketMakerMayOpen() {
+        Event event = eventOwnedByTheMarketMaker();
+
+        assertThrows(IllegalStateException.class, () -> event.open(bystander));
+        assertEquals(EventStatus.NOT_STARTED, event.status());
+        assertEquals(100.0, bystander.account().balance(), TOLERANCE, "the bystander pays nothing");
+    }
+
+    @Test
+    @DisplayName("A market maker who cannot afford the subsidy cannot open the event")
+    void openingNeedsTheMoneyUpFront() {
+        Event event = event();
+        User pauper = new User("Avrum", 10);
+        event.assignMarketMaker(pauper);
+
+        assertThrows(IllegalStateException.class, () -> event.open(pauper));
+
+        assertEquals(EventStatus.NOT_STARTED, event.status());
+        assertEquals(10.0, pauper.account().balance(), TOLERANCE);
+        assertTrue(!pauper.isBlocked(), "a refused action must not block anyone");
+    }
+
+    @Test
+    @DisplayName("An event cannot be opened twice")
+    void openingHappensOnce() {
+        Event event = eventOwnedByTheMarketMaker();
+        event.open(marketMaker);
+
+        assertThrows(IllegalStateException.class, () -> event.open(marketMaker));
+    }
+
+    @Test
+    @DisplayName("An event that never opened cannot be closed")
+    void closingNeedsAnOpenEvent() {
+        Event event = eventOwnedByTheMarketMaker();
+
+        assertThrows(IllegalStateException.class, () -> event.close(marketMaker, 0));
+    }
+
+    @Test
+    @DisplayName("Nobody but the market maker may close an event")
+    void onlyTheMarketMakerMayClose() {
+        Event event = eventOwnedByTheMarketMaker();
+        event.open(marketMaker);
+
+        assertThrows(IllegalStateException.class, () -> event.close(bystander, 0));
+        assertEquals(EventStatus.ACTIVE, event.status());
+    }
+
+    @Test
+    @DisplayName("Closing decides the event for good")
+    void closingIsFinal() {
+        Event event = eventOwnedByTheMarketMaker();
+        event.open(marketMaker);
+
+        event.close(marketMaker, 0);
+
+        assertEquals(EventStatus.CLOSED, event.status());
+        assertSame(event.options().get(0), event.winningOption());
+        assertThrows(IllegalStateException.class, () -> event.close(marketMaker, 1));
+        assertThrows(IllegalStateException.class, () -> event.open(marketMaker));
+    }
+}

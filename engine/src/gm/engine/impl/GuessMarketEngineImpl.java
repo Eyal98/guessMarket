@@ -85,7 +85,7 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
         Event event = eventAt(eventNumber);
         int optionIndex = optionIndexIn(event, winningOptionNumber);
         requireOpen(event);
-        event.close(optionIndex, currentState().marketMakerAccount());
+        event.close(event.marketMaker(), optionIndex);
         return stateOf(event, eventNumber);
     }
 

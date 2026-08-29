@@ -4,6 +4,7 @@ import gm.engine.TestFiles;
 import gm.engine.api.FileLoadException;
 import gm.engine.model.CommissionType;
 import gm.engine.model.Event;
+import gm.engine.model.EventStatus;
 import gm.engine.model.EventOption;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,8 @@ class EventsFileLoaderTest {
         assertEquals(CommissionType.ON_PURCHASE, first.commission().type());
         assertEquals(List.of("Yes", "No"), optionNames(first));
         assertEquals("LMSR (b=100)", first.methodDescription());
-        assertTrue(first.isOpen(), "a freshly loaded event should be open");
+        assertEquals(EventStatus.NOT_STARTED, first.status(),
+                "an event arrives from the file dormant, waiting for its market maker to open it");
 
         assertEquals(1, events.get(1).id());
         assertEquals(CommissionType.ON_CLOSE, events.get(1).commission().type());
