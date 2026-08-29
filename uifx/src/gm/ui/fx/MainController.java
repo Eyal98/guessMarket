@@ -32,8 +32,12 @@ public final class MainController {
     /** Long enough for the progress to be visible, short enough not to be a nuisance. */
     private static final long SIMULATED_WORK_MILLIS = 1400;
     private static final int PROGRESS_STEPS = 20;
+    /** What the engine names a saved market. It accepts a path that already carries it. */
+    private static final String SAVE_EXTENSION = ".gm";
 
     @FXML private Button loadButton;
+    @FXML private Button saveButton;
+    @FXML private Button restoreButton;
     @FXML private Label loadedPathLabel;
     @FXML private Label statusLabel;
     @FXML private ProgressBar loadProgress;
@@ -93,6 +97,58 @@ public final class MainController {
         }
     }
 
+    /**
+     * Puts the whole market away in a file: every event, every account, the orders still resting and
+     * the past both charts are drawn from.
+     */
+    @FXML
+    private void onSaveState() {
+        if (!engine.isLoaded()) {
+            statusLabel.setText("There is nothing to save until a file has been loaded.");
+            return;
+        }
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Save the market");
+        chooser.getExtensionFilters().add(savedMarketFilter());
+        chooser.setInitialFileName("guess-market" + SAVE_EXTENSION);
+        File chosen = chooser.showSaveDialog(window());
+        if (chosen == null) {
+            return;
+        }
+        try {
+            statusLabel.setText("Saved to " + engine.saveState(chosen.getAbsolutePath()) + ".");
+        } catch (GuessMarketException e) {
+            reportFailure(e);
+        }
+    }
+
+    /** Brings a saved market back, exactly where it was left. */
+    @FXML
+    private void onRestoreState() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Restore a saved market");
+        chooser.getExtensionFilters().add(savedMarketFilter());
+        File chosen = chooser.showOpenDialog(window());
+        if (chosen == null) {
+            return;
+        }
+        try {
+            engine.loadState(chosen.getAbsolutePath());
+            loadedPathLabel.setText(chosen.getAbsolutePath());
+            statusLabel.setText("Restored from " + chosen.getAbsolutePath() + ".");
+            refreshEverything();
+        } catch (GuessMarketException e) {
+            // A failed restore leaves the engine holding whatever it had, so the screen is left
+            // showing that rather than being emptied.
+            statusLabel.setText("The saved market was not restored.");
+            reportFailure(e);
+        }
+    }
+
+    private FileChooser.ExtensionFilter savedMarketFilter() {
+        return new FileChooser.ExtensionFilter("Saved markets", "*" + SAVE_EXTENSION);
+    }
+
     private void load(File file) {
         Task<LoadResultDto> loading = new Task<>() {
             @Override
@@ -133,6 +189,8 @@ public final class MainController {
         loadProgress.setVisible(busy);
         loadProgress.setManaged(busy);
         loadButton.setDisable(busy);
+        saveButton.setDisable(busy);
+        restoreButton.setDisable(busy);
         if (!busy) {
             loadProgress.progressProperty().unbind();
         }

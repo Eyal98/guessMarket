@@ -31,6 +31,8 @@
                 </padding>
                 <Button fx:id="loadButton" text="Load File" onAction="#onLoadFile"
                         prefWidth="140.0" styleClass="primary-button"/>
+                <Button fx:id="saveButton" text="Save" onAction="#onSaveState" prefWidth="80.0"/>
+                <Button fx:id="restoreButton" text="Restore" onAction="#onRestoreState" prefWidth="80.0"/>
                 <Label fx:id="loadedPathLabel" text="No file loaded" styleClass="file-path"
                        maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
                 <ProgressBar fx:id="loadProgress" prefWidth="180.0" visible="false" managed="false"/>
