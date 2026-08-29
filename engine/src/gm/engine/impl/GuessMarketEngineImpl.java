@@ -8,6 +8,10 @@ import gm.engine.api.dto.BalancePointDto;
 import gm.engine.api.dto.EventInfoDto;
 import gm.engine.api.dto.LoadResultDto;
 import gm.engine.api.dto.MarketStateDto;
+import gm.engine.api.dto.NewEventDto;
+import gm.engine.api.dto.NewLmsrDto;
+import gm.engine.api.dto.NewMethodDto;
+import gm.engine.api.dto.NewOrderBookDto;
 import gm.engine.api.dto.OptionHoldingDto;
 import gm.engine.api.dto.OptionMarketDto;
 import gm.engine.api.dto.OptionStateDto;
@@ -32,6 +36,7 @@ import gm.engine.model.orderbook.OrderSide;
 import gm.engine.model.User;
 import gm.engine.model.EventOption;
 import gm.engine.model.SystemState;
+import gm.engine.model.Commission;
 import gm.engine.model.CommissionType;
 import gm.engine.model.Trade;
 import gm.engine.persistence.StateSerializer;
@@ -82,6 +87,67 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
     @Override
     public MarketStateDto marketState(int eventNumber) {
         return stateOf(eventAt(eventNumber), eventNumber);
+    }
+
+    @Override
+    public int createEvent(int creatorNumber, NewEventDto details) {
+        User creator = userAt(creatorNumber);
+        if (details == null) {
+            throw new InvalidSelectionException("There are no details to make an event from.");
+        }
+        String name = trimmed(details.name());
+        if (name.isEmpty()) {
+            throw new InvalidSelectionException("An event needs a name.");
+        }
+        List<String> optionNames = new ArrayList<>();
+        for (String optionName : details.optionNames()) {
+            String trimmedOption = trimmed(optionName);
+            if (trimmedOption.isEmpty()) {
+                throw new InvalidSelectionException(
+                        "Every outcome needs a name, or nobody could choose it.");
+            }
+            optionNames.add(trimmedOption);
+        }
+
+        List<Event> events = new ArrayList<>(currentState().events());
+        Event created = asSelectionFailure(() -> build(nextFreeId(events), name, details, optionNames));
+        created.assignMarketMaker(creator);
+        events.add(created);
+        state = new SystemState(events, currentState().users());
+        return events.size();
+    }
+
+    /**
+     * Builds the event itself. Every rule about what makes a sound event already lives in the model
+     * constructors, so this asks them rather than repeating them and risking the two disagreeing.
+     */
+    private Event build(int id, String name, NewEventDto details, List<String> optionNames) {
+        CommissionType timing = CommissionType.fromFileValue(details.commissionTiming())
+                .orElseThrow(() -> new IllegalArgumentException("\"" + details.commissionTiming()
+                        + "\" is not a moment a commission can be charged. It must be \""
+                        + CommissionType.ON_PURCHASE.fileValue() + "\" or \""
+                        + CommissionType.ON_CLOSE.fileValue() + "\"."));
+        Commission commission = new Commission(details.commissionPercent(), timing);
+        String description = trimmed(details.description());
+
+        NewMethodDto method = details.method();
+        if (method instanceof NewLmsrDto lmsr) {
+            return new LmsrEvent(id, name, description, commission, optionNames, lmsr.liquidity());
+        }
+        if (method instanceof NewOrderBookDto book) {
+            return new OrderBookEvent(id, name, description, commission, optionNames,
+                    book.initialInvestment(), book.baseValue(), book.allowMint());
+        }
+        throw new IllegalArgumentException("An event has to be traded somehow, and no method was given.");
+    }
+
+    /** One past the highest id in use, so a created event cannot collide with a loaded one. */
+    private int nextFreeId(List<Event> events) {
+        return events.stream().mapToInt(Event::id).max().orElse(0) + 1;
+    }
+
+    private static String trimmed(String text) {
+        return text == null ? "" : text.trim();
     }
 
     @Override

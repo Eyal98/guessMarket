@@ -4,6 +4,7 @@ import gm.engine.api.dto.BalanceHistoryDto;
 import gm.engine.api.dto.EventInfoDto;
 import gm.engine.api.dto.LoadResultDto;
 import gm.engine.api.dto.MarketStateDto;
+import gm.engine.api.dto.NewEventDto;
 import gm.engine.api.dto.OrderBookStateDto;
 import gm.engine.api.dto.PriceHistoryDto;
 import gm.engine.api.dto.PurchaseResultDto;
@@ -139,6 +140,20 @@ public interface GuessMarketEngine {
      */
     List<TradeDto> submitOrder(int eventNumber, int userNumber, int optionNumber, OrderSide side,
                                long quantity, double price);
+
+    /**
+     * Brings a new event into being, run by the person who asked for it.
+     * <p>
+     * It costs nothing. Creating an event only describes it; it is opening one that takes money out
+     * of the market maker's pocket, and that is a separate act taken later.
+     *
+     * @param creatorNumber the user's number, counted from 1, who becomes the event's market maker
+     * @param details       what the event should be
+     * @return the new event's number, counted from 1, ready to be passed straight back in
+     * @throws InvalidSelectionException if there is no such user, or the details do not describe a
+     *                                   real event
+     */
+    int createEvent(int creatorNumber, NewEventDto details);
 
     /**
      * Everything one event's prices have done since it opened, for drawing as a chart.

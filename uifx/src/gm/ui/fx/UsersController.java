@@ -109,7 +109,9 @@ public final class UsersController {
         userBalance.getStyleClass().add("balance");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox header = new HBox(10, userName, userState, spacer, userBalance);
+        Button createEvent = new Button("Create an event");
+        createEvent.setOnAction(ignored -> createEventForSelectedUser());
+        HBox header = new HBox(10, userName, userState, spacer, createEvent, userBalance);
         header.setAlignment(Pos.CENTER_LEFT);
 
         involvement.setPlaceholder(new Label("This user has not taken part in anything yet."));
@@ -137,6 +139,27 @@ public final class UsersController {
 
         root.getItems().addAll(left, scrollingRight);
         root.setDividerPositions(0.24);
+    }
+
+    /**
+     * Opens the form for a new event run by whoever is selected, and shows the result once it exists.
+     * <p>
+     * The creator is not asked for anywhere in the form. It is the selected user, for the same reason
+     * trading works that way: it leaves no room to wonder who ends up running the thing.
+     */
+    private void createEventForSelectedUser() {
+        UserDto creator = users.getSelectionModel().getSelectedItem();
+        if (creator == null) {
+            main.setStatus("Choose whose event it is first.");
+            return;
+        }
+        CreateEventDialog.askFor(root.getScene() == null ? null : root.getScene().getWindow(),
+                        engine, creator, main)
+                .ifPresent(number -> {
+                    main.refreshEverything();
+                    main.setStatus(creator.name() + " created event " + number
+                            + ". It is waiting to be opened.");
+                });
     }
 
     private void showSelectedUser() {
