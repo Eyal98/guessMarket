@@ -1,9 +1,11 @@
 package gm.engine.api;
 
+import gm.engine.api.dto.BalanceHistoryDto;
 import gm.engine.api.dto.EventInfoDto;
 import gm.engine.api.dto.LoadResultDto;
 import gm.engine.api.dto.MarketStateDto;
 import gm.engine.api.dto.OrderBookStateDto;
+import gm.engine.api.dto.PriceHistoryDto;
 import gm.engine.api.dto.PurchaseResultDto;
 import gm.engine.api.dto.TradeDto;
 import gm.engine.api.dto.UserDetailDto;
@@ -137,6 +139,25 @@ public interface GuessMarketEngine {
      */
     List<TradeDto> submitOrder(int eventNumber, int userNumber, int optionNumber, OrderSide side,
                                long quantity, double price);
+
+    /**
+     * Everything one event's prices have done since it opened, for drawing as a chart.
+     * <p>
+     * An option the market cannot price carries a null rather than a nought, so the line breaks
+     * where the truth is "nobody has said yet" instead of dropping to the floor.
+     *
+     * @param eventNumber the event's number, counted from 1
+     * @throws InvalidSelectionException if there is no such event
+     */
+    PriceHistoryDto priceHistory(int eventNumber);
+
+    /**
+     * Everything one person's balance has done, starting with the cash the file gave them.
+     *
+     * @param userNumber the user's number, counted from 1
+     * @throws InvalidSelectionException if there is no such user
+     */
+    BalanceHistoryDto balanceHistory(int userNumber);
 
     /**
      * Decides an event and pays the holders of the winning option.

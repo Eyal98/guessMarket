@@ -1,6 +1,8 @@
 package gm.engine.model;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -17,11 +19,19 @@ public final class User implements Serializable {
 
     private final String name;
     private final Account account = new Account();
+    /** Always an ArrayList, which is serializable; the declared type simply cannot say so. */
+    @SuppressWarnings("serial")
+    private final List<BalanceSample> balanceHistory = new ArrayList<>();
     private boolean blocked;
+
+    /** What this user was worth after one particular movement of money. */
+    public record BalanceSample(int step, double balance) implements Serializable {
+    }
 
     public User(String name, double initialCash) {
         this.name = Objects.requireNonNull(name, "name");
         account.deposit(initialCash);
+        rememberBalance();
     }
 
     public String name() {
@@ -43,10 +53,24 @@ public final class User implements Serializable {
         if (account.balance() < 0) {
             blocked = true;
         }
+        rememberBalance();
     }
 
     /** Puts money in. Never unblocks a user who has already spent past zero. */
     public void receive(double amount) {
         account.deposit(amount);
+        rememberBalance();
+    }
+
+    /**
+     * Every balance this user has ever had, oldest first, starting with the cash they were given.
+     * A chart of their fortunes is drawn straight from this.
+     */
+    public List<BalanceSample> balanceHistory() {
+        return List.copyOf(balanceHistory);
+    }
+
+    private void rememberBalance() {
+        balanceHistory.add(new BalanceSample(balanceHistory.size(), account.balance()));
     }
 }

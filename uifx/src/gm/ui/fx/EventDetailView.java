@@ -44,6 +44,7 @@ public final class EventDetailView {
         this.engine = engine;
         this.animations = animations;
         content.setPadding(new Insets(12));
+        root.setId("eventDetail");
         root.setFitToWidth(true);
         root.setPannable(true);
     }
@@ -70,6 +71,8 @@ public final class EventDetailView {
         } else {
             showLmsr(engine.marketState(event.number()));
         }
+        content.getChildren().addAll(
+                Charts.titled("How the market has moved", Charts.priceChart(engine.priceHistory(event.number()))));
         animations.play(Animations.Motion.APPEARING, content);
     }
 

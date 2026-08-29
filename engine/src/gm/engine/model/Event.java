@@ -28,6 +28,19 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
     /** Fewer than this many outcomes would leave nothing to choose between. */
     public static final int MINIMUM_OPTIONS = 2;
 
+    /**
+     * Where every option stood after one particular trade.
+     * <p>
+     * A price may be missing. An order book has nothing to report until two people have actually
+     * agreed on something, and writing nought there would claim a share is worthless when the truth
+     * is that nobody has said yet, so the entry is null and whatever draws the chart leaves a gap.
+     */
+    public record PriceSample(int step, List<Double> pricePerOption) implements Serializable {
+        public PriceSample {
+            pricePerOption = Collections.unmodifiableList(new ArrayList<>(pricePerOption));
+        }
+    }
+
     private final int id;
     private final String name;
     private final String description;
@@ -39,6 +52,9 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
     /** Always an ArrayList, which is serializable; the declared type simply cannot say so. */
     @SuppressWarnings("serial")
     private final List<Trade> history = new ArrayList<>();
+    /** Always an ArrayList, which is serializable; the declared type simply cannot say so. */
+    @SuppressWarnings("serial")
+    private final List<PriceSample> priceHistory = new ArrayList<>();
     /** Always a LinkedHashMap, which is serializable; the declared type simply cannot say so. */
     @SuppressWarnings("serial")
     private final Map<User, Holding> holdings = new LinkedHashMap<>();
@@ -97,6 +113,7 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
         account.deposit(cost);
         status = EventStatus.ACTIVE;
         onOpened();
+        rememberPrices();
     }
 
     /** What this user holds here. Reading it does not make them a participant. */
@@ -175,11 +192,36 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
         return id;
     }
 
-    /** Records a completed trade and the commission it earned the market maker. */
+    /**
+     * Records a completed trade and the commission it earned the market maker.
+     * <p>
+     * Every settlement in both kinds of event ends here, which makes it the one place that has to
+     * remember where the prices stood afterwards. Hooking the chart in at this single point means no
+     * future trading path can be added and quietly forget to record itself.
+     */
     protected void recordTrade(Trade trade, double commissionEarned) {
         history.add(trade);
         commissionCollected += commissionEarned;
+        rememberPrices();
     }
+
+    /**
+     * Every set of prices this event has stood at, oldest first, beginning with the moment it opened.
+     * This is what a chart of the market is drawn from.
+     */
+    public List<PriceSample> priceHistory() {
+        return List.copyOf(priceHistory);
+    }
+
+    private void rememberPrices() {
+        priceHistory.add(new PriceSample(priceHistory.size(), currentPrices()));
+    }
+
+    /**
+     * What each option is worth at this moment, in the order the options are listed, with null for an
+     * option the market cannot price yet.
+     */
+    protected abstract List<Double> currentPrices();
 
     public String name() {
         return name;

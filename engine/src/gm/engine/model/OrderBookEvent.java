@@ -127,6 +127,19 @@ public final class OrderBookEvent extends Event {
         }
     }
 
+    /**
+     * An order book has nothing to say about an option until two people have agreed on a price for
+     * it, so an option that has never traded reports nothing rather than nought.
+     */
+    @Override
+    protected List<Double> currentPrices() {
+        List<Double> prices = new ArrayList<>(books.size());
+        for (OrderBook book : books) {
+            prices.add(book.lastTradedPrice().isPresent() ? book.lastTradedPrice().getAsDouble() : null);
+        }
+        return prices;
+    }
+
     /** Closing the market ends it for good, so nothing left waiting could ever be filled. */
     @Override
     protected void onClosed() {
@@ -179,10 +192,10 @@ public final class OrderBookEvent extends Event {
                 break;
             }
             long filled = Math.min(incoming.remaining(), resting.remaining());
+            book.recordTrade(resting.price());
             trades.add(settleResale(resting.user(), incoming.user(), optionIndex, filled, resting.price()));
             incoming.reduceBy(filled);
             resting.reduceBy(filled);
-            book.recordTrade(resting.price());
         }
         book.removeFilled();
     }
@@ -195,10 +208,10 @@ public final class OrderBookEvent extends Event {
                 break;
             }
             long filled = Math.min(incoming.remaining(), resting.remaining());
+            book.recordTrade(resting.price());
             trades.add(settleResale(incoming.user(), resting.user(), optionIndex, filled, resting.price()));
             incoming.reduceBy(filled);
             resting.reduceBy(filled);
-            book.recordTrade(resting.price());
         }
         book.removeFilled();
     }
@@ -247,13 +260,13 @@ public final class OrderBookEvent extends Event {
                 double restingPrice = resting.price();
                 double incomingPrice = baseValue - restingPrice;
 
+                otherBook.recordTrade(restingPrice);
+                books.get(optionIndex).recordTrade(incomingPrice);
                 trades.add(settleMintedHalf(resting.user(), otherIndex, minted, restingPrice));
                 trades.add(settleMintedHalf(incoming.user(), optionIndex, minted, incomingPrice));
 
                 incoming.reduceBy(minted);
                 resting.reduceBy(minted);
-                otherBook.recordTrade(restingPrice);
-                books.get(optionIndex).recordTrade(incomingPrice);
             }
             otherBook.removeFilled();
         }

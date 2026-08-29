@@ -56,6 +56,7 @@ public final class UsersController {
     private final TableView<EventRole> involvement = new TableView<>();
     private final ObservableList<EventRole> involvementRows = FXCollections.observableArrayList();
     private final VBox actions = new VBox(8);
+    private final VBox moneyChart = new VBox(8);
 
     /** One line of the "events participation \ owner" table: an event and why this user is in it. */
     public record EventRole(EventInfoDto event, boolean runsIt, ParticipationDto holding) {
@@ -125,10 +126,12 @@ public final class UsersController {
 
         VBox right = new VBox(10, header, new Separator(),
                 EventDetailView.section("Events participation and ownership"), involvement,
-                EventDetailView.section("Act on the selected event"), actions);
+                EventDetailView.section("Act on the selected event"), actions,
+                moneyChart);
         right.setPadding(new Insets(12));
 
         ScrollPane scrollingRight = new ScrollPane(right);
+        scrollingRight.setId("userDetail");
         scrollingRight.setFitToWidth(true);
         scrollingRight.setPannable(true);
 
@@ -144,6 +147,7 @@ public final class UsersController {
             userBalance.setText("");
             involvementRows.clear();
             actions.getChildren().clear();
+            moneyChart.getChildren().clear();
             return;
         }
         UserDetailDto detail = engine.userDetail(selected.number());
@@ -160,6 +164,8 @@ public final class UsersController {
                     .ifPresent(involvement.getSelectionModel()::select);
         }
         showActionsFor(involvement.getSelectionModel().getSelectedItem());
+        moneyChart.getChildren().setAll(Charts.titled("How " + detail.name() + "'s money has moved",
+                Charts.balanceChart(engine.balanceHistory(selected.number()))));
     }
 
     /** Everything this user is involved in: what they run, what they hold, and what they could open. */

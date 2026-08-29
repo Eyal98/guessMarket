@@ -66,6 +66,16 @@ public final class LmsrEvent extends Event {
         return method.sellProceeds(sharesPerOption(), optionIndex, quantity);
     }
 
+    /** An LMSR event can always price every option, because the formula answers whatever it is asked. */
+    @Override
+    protected List<Double> currentPrices() {
+        List<Double> prices = new java.util.ArrayList<>(options().size());
+        for (int optionIndex = 0; optionIndex < options().size(); optionIndex++) {
+            prices.add(valueOf(optionIndex));
+        }
+        return prices;
+    }
+
     /**
      * Buys shares of one option for a user.
      * <p>

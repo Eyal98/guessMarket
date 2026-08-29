@@ -3,6 +3,8 @@ package gm.engine.impl;
 import gm.engine.api.GuessMarketEngine;
 import gm.engine.api.InvalidSelectionException;
 import gm.engine.api.NoFileLoadedException;
+import gm.engine.api.dto.BalanceHistoryDto;
+import gm.engine.api.dto.BalancePointDto;
 import gm.engine.api.dto.EventInfoDto;
 import gm.engine.api.dto.LoadResultDto;
 import gm.engine.api.dto.MarketStateDto;
@@ -13,6 +15,8 @@ import gm.engine.api.dto.OrderBookStateDto;
 import gm.engine.api.dto.OrderDto;
 import gm.engine.api.dto.ParticipantDto;
 import gm.engine.api.dto.ParticipationDto;
+import gm.engine.api.dto.PriceHistoryDto;
+import gm.engine.api.dto.PricePointDto;
 import gm.engine.api.dto.PurchaseResultDto;
 import gm.engine.api.dto.UserDetailDto;
 import gm.engine.api.dto.UserDto;
@@ -78,6 +82,28 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
     @Override
     public MarketStateDto marketState(int eventNumber) {
         return stateOf(eventAt(eventNumber), eventNumber);
+    }
+
+    @Override
+    public PriceHistoryDto priceHistory(int eventNumber) {
+        Event event = eventAt(eventNumber);
+        List<PricePointDto> points = new ArrayList<>();
+        for (Event.PriceSample sample : event.priceHistory()) {
+            points.add(new PricePointDto(sample.step(), sample.pricePerOption()));
+        }
+        List<String> optionNames = new ArrayList<>();
+        event.options().forEach(option -> optionNames.add(option.name()));
+        return new PriceHistoryDto(event.name(), optionNames, points);
+    }
+
+    @Override
+    public BalanceHistoryDto balanceHistory(int userNumber) {
+        User user = userAt(userNumber);
+        List<BalancePointDto> points = new ArrayList<>();
+        for (User.BalanceSample sample : user.balanceHistory()) {
+            points.add(new BalancePointDto(sample.step(), sample.balance()));
+        }
+        return new BalanceHistoryDto(user.name(), points);
     }
 
     @Override
