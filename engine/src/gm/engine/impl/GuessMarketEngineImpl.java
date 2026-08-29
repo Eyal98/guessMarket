@@ -38,9 +38,10 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
 
     @Override
     public LoadResultDto loadEventsFile(String path) {
-        SystemState loaded = new SystemState(fileLoader.load(path));
+        SystemState loaded = fileLoader.load(path);
         state = loaded;
-        return new LoadResultDto(path == null ? "" : path.trim(), loaded.eventCount(), loaded.totalSubsidy());
+        return new LoadResultDto(path == null ? "" : path.trim(), loaded.eventCount(),
+                loaded.costOfOpeningEverything());
     }
 
     @Override
@@ -121,7 +122,7 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
         EventOption winner = event.winningOption();
         return new MarketStateDto(infoOf(event, eventNumber), List.copyOf(options),
                 event.account().balance(), event.commissionCollected(),
-                currentState().marketMakerAccount().balance(), newestFirst(event.history()),
+                event.marketMaker().account().balance(), newestFirst(event.history()),
                 winner != null,
                 winner == null ? null : winner.name(),
                 winner == null ? 0L : winner.sharesBought(),

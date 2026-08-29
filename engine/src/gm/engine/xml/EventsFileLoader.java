@@ -2,6 +2,8 @@ package gm.engine.xml;
 
 import gm.engine.api.FileLoadException;
 import gm.engine.model.Event;
+import gm.engine.model.SystemState;
+import gm.engine.model.User;
 import org.w3c.dom.Document;
 import org.xml.sax.ErrorHandler;
 import org.xml.sax.SAXException;
@@ -35,20 +37,27 @@ public final class EventsFileLoader {
     private static final String ROOT_ELEMENT = "Guess-Market";
     private static final String EVENTS_ELEMENT = "GM-events";
     private static final String EVENT_ELEMENT = "GM-event";
+    private static final String USERS_ELEMENT = "GM-users";
+    private static final String USER_ELEMENT = "GM-user";
 
     /**
      * Reads the file at {@code path}.
      *
-     * @return the events it describes, in the order they appear
-     * @throws FileLoadException if the file cannot be read or does not describe a sound set of events
+     * @return the events and users it describes, in the order they appear
+     * @throws FileLoadException if the file cannot be read or does not describe a sound market
      */
-    public List<Event> load(String path) {
+    public SystemState load(String path) {
         XmlNode root = new XmlNode(parse(readableFileAt(path)).getDocumentElement());
         if (!root.isNamed(ROOT_ELEMENT)) {
             throw new FileLoadException("this is not a Guess Market file: its root element is <" + root.name()
                     + "> instead of <" + ROOT_ELEMENT + ">.");
         }
-        return readEvents(root);
+        if (root.child(USERS_ELEMENT).isEmpty()) {
+            throw new FileLoadException("it has no <" + USERS_ELEMENT + "> element. This looks like a file"
+                    + " written for the earlier version of the exercise, which had no users; this version"
+                    + " needs one.");
+        }
+        return readMarket(root);
     }
 
     private File readableFileAt(String path) {
@@ -90,16 +99,11 @@ public final class EventsFileLoader {
         }
     }
 
-    private List<Event> readEvents(XmlNode root) {
-        XmlNode eventsNode = root.child(EVENTS_ELEMENT).orElseThrow(() -> new FileLoadException(
-                "it has no <" + EVENTS_ELEMENT + "> element, so it describes no events."));
-        List<XmlNode> eventNodes = eventsNode.children(EVENT_ELEMENT);
-        if (eventNodes.isEmpty()) {
-            throw new FileLoadException("it contains no events. A Guess Market file needs at least one <"
-                    + EVENT_ELEMENT + ">.");
-        }
-
+    private SystemState readMarket(XmlNode root) {
         List<String> problems = new ArrayList<>();
+
+        List<XmlNode> eventNodes = childrenOf(root, EVENTS_ELEMENT, EVENT_ELEMENT,
+                "it contains no events. A Guess Market file needs at least one <" + EVENT_ELEMENT + ">.");
         List<Event> events = new ArrayList<>();
         List<EventNodeReader> readers = new ArrayList<>();
         for (int i = 0; i < eventNodes.size(); i++) {
@@ -109,10 +113,80 @@ public final class EventsFileLoader {
         }
         checkIdsAreUnique(readers, problems);
 
+        List<XmlNode> userNodes = childrenOf(root, USERS_ELEMENT, USER_ELEMENT,
+                "it contains no users. A Guess Market file needs at least one <" + USER_ELEMENT + ">.");
+        List<User> users = new ArrayList<>();
+        List<UserNodeReader> userReaders = new ArrayList<>();
+        for (int i = 0; i < userNodes.size(); i++) {
+            UserNodeReader reader = new UserNodeReader(userNodes.get(i), i + 1, problems);
+            userReaders.add(reader);
+            reader.read().ifPresent(users::add);
+        }
+        checkNamesAreUnique(users, problems);
+        assignMarketMakers(events, users, userReaders, problems);
+
         if (!problems.isEmpty()) {
             throw new FileLoadException(problems);
         }
-        return List.copyOf(events);
+        return new SystemState(events, users);
+    }
+
+    private List<XmlNode> childrenOf(XmlNode root, String containerName, String itemName, String ifEmpty) {
+        XmlNode container = root.child(containerName).orElseThrow(() -> new FileLoadException(
+                "it has no <" + containerName + "> element."));
+        List<XmlNode> items = container.children(itemName);
+        if (items.isEmpty()) {
+            throw new FileLoadException(ifEmpty);
+        }
+        return items;
+    }
+
+    private void checkNamesAreUnique(List<User> users, List<String> problems) {
+        Map<String, String> seen = new HashMap<>();
+        for (User user : users) {
+            String earlier = seen.putIfAbsent(user.name().toLowerCase(Locale.ROOT), user.name());
+            if (earlier != null) {
+                problems.add("Two users are both called \"" + user.name()
+                        + "\". Every user must have a name of their own.");
+            }
+        }
+    }
+
+    /**
+     * Hands each event to the user who claims to run it, and complains about both ways that can go
+     * wrong: a user pointing at an event that is not there, and an event nobody has claimed.
+     */
+    private void assignMarketMakers(List<Event> events, List<User> users,
+                                    List<UserNodeReader> userReaders, List<String> problems) {
+        Map<Integer, Event> eventsById = new HashMap<>();
+        for (Event event : events) {
+            eventsById.put(event.id(), event);
+        }
+        for (int i = 0; i < userReaders.size() && i < users.size(); i++) {
+            UserNodeReader reader = userReaders.get(i);
+            User user = users.get(i);
+            for (int eventId : reader.runsEventIds()) {
+                Event event = eventsById.get(eventId);
+                if (event == null) {
+                    problems.add(reader.label() + ": it is the market maker of event " + eventId
+                            + ", but no event has that id.");
+                    continue;
+                }
+                if (event.marketMaker() != null) {
+                    problems.add("Event \"" + event.name() + "\" has two market makers, "
+                            + event.marketMaker().name() + " and " + user.name()
+                            + ". Every event must have exactly one.");
+                    continue;
+                }
+                event.assignMarketMaker(user);
+            }
+        }
+        for (Event event : events) {
+            if (event.marketMaker() == null) {
+                problems.add("Event \"" + event.name()
+                        + "\" has no market maker. Every event must be run by exactly one user.");
+            }
+        }
     }
 
     private void checkIdsAreUnique(List<EventNodeReader> readers, List<String> problems) {

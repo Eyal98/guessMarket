@@ -49,4 +49,14 @@
             </GM-method>
         </GM-event>
     </GM-events>
+	<GM-users>
+		<GM-user name="Tester">
+			<initial-cash>100000</initial-cash>
+			<GM-market-maker>
+			<event id="3"/>
+			<event id="1"/>
+			<event id="7"/>
+			</GM-market-maker>
+		</GM-user>
+	</GM-users>
 </Guess-Market>

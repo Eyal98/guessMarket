@@ -29,7 +29,7 @@ class EventsFileLoaderTest {
     @Test
     @DisplayName("A sound file is loaded with its events in file order")
     void loadsASoundFile() {
-        List<Event> events = loader.load(TestFiles.path("events-basic.xml"));
+        List<Event> events = loader.load(TestFiles.path("events-basic.xml")).events();
 
         assertEquals(3, events.size());
 
@@ -54,7 +54,7 @@ class EventsFileLoaderTest {
     @Test
     @DisplayName("Surrounding spaces are ignored and the commission type is read whatever its case")
     void trimsTextAndIgnoresLetterCase() {
-        Event event = loader.load(TestFiles.path("events-single.xml")).get(0);
+        Event event = loader.load(TestFiles.path("events-single.xml")).events().get(0);
 
         assertEquals("Rain In Tel Aviv This Week", event.name());
         assertEquals("Yes", event.options().get(0).name());
@@ -66,7 +66,7 @@ class EventsFileLoaderTest {
     @Test
     @DisplayName("A path containing spaces needs no special treatment")
     void loadsFromAPathContainingSpaces() {
-        List<Event> events = loader.load(TestFiles.path("with spaces/events in a folder with spaces.xml"));
+        List<Event> events = loader.load(TestFiles.path("with spaces/events in a folder with spaces.xml")).events();
 
         assertEquals(1, events.size());
         assertEquals("Event Loaded From A Path With Spaces", events.get(0).name());
@@ -167,7 +167,7 @@ class EventsFileLoaderTest {
     @Test
     @DisplayName("An order book event loads with the terms it was given")
     void anOrderBookEventLoads() {
-        List<Event> events = loader.load(TestFiles.path("events-order-book.xml"));
+        List<Event> events = loader.load(TestFiles.path("events-order-book.xml")).events();
 
         assertEquals(1, events.size());
         assertInstanceOf(OrderBookEvent.class, events.get(0));

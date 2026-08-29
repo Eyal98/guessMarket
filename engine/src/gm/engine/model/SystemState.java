@@ -4,34 +4,26 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * Everything the system currently holds: the loaded events and the market maker account that funds
+ * Everything the system currently holds: the events that were loaded and the people who trade on
  * them.
  * <p>
- * Building a state also funds it. That keeps the rule "loading a file resets the market maker account
- * and pays the subsidy of every event" in one place, and makes it impossible to end up with a state
- * whose events were never paid for.
+ * Nothing is funded here. In this version an event is paid for when its market maker opens it, not
+ * when the file is read, so a freshly loaded state is a set of dormant events and users holding
+ * exactly the cash their file gave them.
  */
 public final class SystemState implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
-    /** Always an immutable list, which is serializable; the declared type simply cannot say so. */
+    /** Always immutable lists, which are serializable; the declared types simply cannot say so. */
     @SuppressWarnings("serial")
     private final List<Event> events;
-    private final Account marketMakerAccount = new Account();
-    private final double totalSubsidy;
+    @SuppressWarnings("serial")
+    private final List<User> users;
 
-    public SystemState(List<Event> events) {
+    public SystemState(List<Event> events, List<User> users) {
         this.events = List.copyOf(events);
-        this.totalSubsidy = this.events.stream().mapToDouble(Event::openingCost).sum();
-    }
-
-    /**
-     * What opening every event would cost its market maker, added up. Nothing has been paid yet: in
-     * this version an event is funded when its market maker opens it, not when the file is read.
-     */
-    public double costOfOpeningEverything() {
-        return totalSubsidy;
+        this.users = List.copyOf(users);
     }
 
     /** The events, in the order they appeared in the file. */
@@ -39,17 +31,25 @@ public final class SystemState implements Serializable {
         return events;
     }
 
-    public Account marketMakerAccount() {
-        return marketMakerAccount;
-    }
-
-    /** What funding every event cost the market maker at load time. */
-    public double totalSubsidy() {
-        return totalSubsidy;
+    /** The users, in the order they appeared in the file. */
+    public List<User> users() {
+        return users;
     }
 
     public int eventCount() {
         return events.size();
+    }
+
+    public int userCount() {
+        return users.size();
+    }
+
+    /**
+     * What opening every event would cost its market maker, added up. Nothing has been paid yet; this
+     * is what the whole market is waiting on.
+     */
+    public double costOfOpeningEverything() {
+        return events.stream().mapToDouble(Event::openingCost).sum();
     }
 
     public List<Event> openEvents() {
