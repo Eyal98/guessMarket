@@ -151,6 +151,10 @@ public final class OrderBookEvent extends Event {
             requireEnoughSharesToSell(user, optionIndex, quantity);
         }
 
+        // Taking part starts with the order, not with the fill: the exercise counts somebody as a
+        // participant from the moment they place one, whether or not it ever finds a match.
+        holdingFor(user);
+
         Order order = new Order(++ordersReceived, user, side, quantity, price);
         List<Trade> trades = new ArrayList<>();
         if (side == OrderSide.BUY) {

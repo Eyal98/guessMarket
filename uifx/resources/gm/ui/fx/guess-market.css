@@ -1,0 +1,17 @@
+/* The default look. Colours and fonts live only here, so a second palette is a second file. */
+.root-pane { -fx-background-color: #f5f6f8; }
+
+.header { -fx-background-color: #1f3864; }
+.app-title { -fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold; -fx-alignment: center; }
+.file-path { -fx-text-fill: #d6ddf0; -fx-font-size: 12px; }
+.status-bar { -fx-background-color: #e4e7ee; -fx-padding: 6 12 6 12; -fx-font-size: 12px; }
+
+.primary-button { -fx-background-color: #2e5496; -fx-text-fill: white; -fx-font-weight: bold; }
+.primary-button:hover { -fx-background-color: #3a68b8; }
+
+.detail-title { -fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: #1f3864; }
+.section-title { -fx-font-weight: bold; -fx-text-fill: #2e5496; -fx-padding: 6 0 2 0; }
+.option-title { -fx-font-weight: bold; -fx-font-size: 14px; }
+.caption { -fx-text-fill: #55607a; }
+.balance { -fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1f3864; }
+.filter-caption { -fx-text-fill: #55607a; -fx-font-size: 12px; }

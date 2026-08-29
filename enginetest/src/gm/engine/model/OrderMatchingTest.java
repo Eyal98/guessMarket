@@ -217,4 +217,15 @@ class OrderMatchingTest {
 
         assertEquals(aliceBeforeClosing + 25.0, alice.account().balance(), TOLERANCE);
     }
+
+    @Test
+    @DisplayName("Placing an order makes you a participant, even if it only rests")
+    void placingAnOrderIsTakingPart() {
+        OrderBookEvent event = openMarket(0, true);
+
+        event.submitOrder(bob, YES, OrderSide.BUY, 20, 0.50);
+
+        assertTrue(event.participants().contains(bob),
+                "the exercise counts participation from the first order, filled or not");
+    }
 }

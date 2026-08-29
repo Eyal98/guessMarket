@@ -1,0 +1,337 @@
+package gm.ui.fx;
+
+import gm.engine.api.GuessMarketEngine;
+import gm.engine.api.GuessMarketException;
+import gm.engine.api.dto.EventInfoDto;
+import gm.engine.api.dto.ParticipationDto;
+import gm.engine.api.dto.UserDetailDto;
+import gm.engine.api.dto.UserDto;
+import gm.engine.model.orderbook.OrderSide;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Separator;
+import javafx.scene.control.SplitPane;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Function;
+
+/**
+ * The users tab, and the place trading actually happens.
+ * <p>
+ * That is what the supplied sketch shows: a narrow list of people on the left, and on the right the
+ * one who is selected — their money, the events they are involved in, and underneath, the panel for
+ * acting on whichever of those events is picked. Trading from here rather than from the events tab is
+ * what makes "who is doing this" unambiguous: it is whoever is selected.
+ */
+public final class UsersController {
+
+    private final GuessMarketEngine engine;
+    private final MainController main;
+
+    private final SplitPane root = new SplitPane();
+    private final TableView<UserDto> users = new TableView<>();
+    private final ObservableList<UserDto> userRows = FXCollections.observableArrayList();
+
+    private final Label userName = new Label();
+    private final Label userBalance = new Label();
+    private final Label userState = new Label();
+    private final TableView<EventRole> involvement = new TableView<>();
+    private final ObservableList<EventRole> involvementRows = FXCollections.observableArrayList();
+    private final VBox actions = new VBox(8);
+
+    /** One line of the "events participation \ owner" table: an event and why this user is in it. */
+    public record EventRole(EventInfoDto event, boolean runsIt, ParticipationDto holding) {
+        String role() {
+            if (runsIt) {
+                return holding == null ? "Market maker" : "Market maker, trading";
+            }
+            return "Trading";
+        }
+    }
+
+    public UsersController(GuessMarketEngine engine, MainController main) {
+        this.engine = engine;
+        this.main = main;
+        build();
+    }
+
+    public Node view() {
+        return root;
+    }
+
+    public void refresh() {
+        UserDto wasSelected = users.getSelectionModel().getSelectedItem();
+        userRows.setAll(engine.isLoaded() ? engine.listUsers() : List.of());
+        if (wasSelected != null) {
+            userRows.stream()
+                    .filter(user -> user.number() == wasSelected.number())
+                    .findFirst()
+                    .ifPresent(users.getSelectionModel()::select);
+        }
+        showSelectedUser();
+    }
+
+    private void build() {
+        users.setItems(userRows);
+        users.setPlaceholder(new Label("No users loaded."));
+        users.getColumns().addAll(List.of(
+                column("#", user -> String.valueOf(user.number()), 36),
+                column("Name", UserDto::name, 110),
+                column("Balance", user -> Format.money(user.balance()), 90)));
+        users.getSelectionModel().selectedItemProperty()
+                .addListener((ignored, was, now) -> showSelectedUser());
+        VBox.setVgrow(users, Priority.ALWAYS);
+        VBox left = new VBox(8, EventDetailView.section("Users"), users);
+        left.setPadding(new Insets(10));
+        left.setMinWidth(240);
+
+        userName.getStyleClass().add("detail-title");
+        userBalance.getStyleClass().add("balance");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox header = new HBox(10, userName, userState, spacer, userBalance);
+        header.setAlignment(Pos.CENTER_LEFT);
+
+        involvement.setPlaceholder(new Label("This user has not taken part in anything yet."));
+        involvement.getColumns().addAll(List.of(
+                EventDetailView.<EventRole>textColumn("Event", role -> role.event().name(), 190),
+                EventDetailView.<EventRole>textColumn("Status", role -> role.event().status(), 90),
+                EventDetailView.<EventRole>textColumn("Type", role -> role.event().methodKind(), 90),
+                EventDetailView.<EventRole>textColumn("Role", EventRole::role, 140),
+                EventDetailView.<EventRole>textColumn("Holding", UsersController::holdingSummary, 160)));
+        involvement.setItems(involvementRows);
+        involvement.setPrefHeight(190);
+        involvement.getSelectionModel().selectedItemProperty()
+                .addListener((ignored, was, now) -> showActionsFor(now));
+
+        VBox right = new VBox(10, header, new Separator(),
+                EventDetailView.section("Events participation and ownership"), involvement,
+                EventDetailView.section("Act on the selected event"), actions);
+        right.setPadding(new Insets(12));
+
+        ScrollPane scrollingRight = new ScrollPane(right);
+        scrollingRight.setFitToWidth(true);
+        scrollingRight.setPannable(true);
+
+        root.getItems().addAll(left, scrollingRight);
+        root.setDividerPositions(0.24);
+    }
+
+    private void showSelectedUser() {
+        UserDto selected = users.getSelectionModel().getSelectedItem();
+        if (selected == null || !engine.isLoaded()) {
+            userName.setText("No user selected");
+            userState.setText("");
+            userBalance.setText("");
+            involvementRows.clear();
+            actions.getChildren().clear();
+            return;
+        }
+        UserDetailDto detail = engine.userDetail(selected.number());
+        userName.setText(detail.name());
+        userBalance.setText("Balance " + Format.money(detail.balance()));
+        userState.setText(detail.blocked() ? "(blocked — has spent past zero)" : "");
+
+        EventRole wasSelected = involvement.getSelectionModel().getSelectedItem();
+        involvementRows.setAll(rolesOf(detail));
+        if (wasSelected != null) {
+            involvementRows.stream()
+                    .filter(role -> role.event().number() == wasSelected.event().number())
+                    .findFirst()
+                    .ifPresent(involvement.getSelectionModel()::select);
+        }
+        showActionsFor(involvement.getSelectionModel().getSelectedItem());
+    }
+
+    /** Everything this user is involved in: what they run, what they hold, and what they could open. */
+    private List<EventRole> rolesOf(UserDetailDto detail) {
+        List<EventRole> roles = new ArrayList<>();
+        for (EventInfoDto event : engine.listEvents()) {
+            boolean runsIt = detail.marketMakerOf().contains(event.name());
+            ParticipationDto holding = detail.participations().stream()
+                    .filter(part -> part.event().number() == event.number())
+                    .findFirst()
+                    .orElse(null);
+            if (runsIt || holding != null) {
+                roles.add(new EventRole(event, runsIt, holding));
+            }
+        }
+        return roles;
+    }
+
+    private static String holdingSummary(EventRole role) {
+        if (role.holding() == null) {
+            return "—";
+        }
+        return role.holding().options().stream()
+                .map(option -> option.optionName() + " " + Format.shares(option.shares()))
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("—");
+    }
+
+    private void showActionsFor(EventRole role) {
+        actions.getChildren().clear();
+        UserDto user = users.getSelectionModel().getSelectedItem();
+        if (role == null || user == null) {
+            actions.getChildren().add(new Label("Choose one of the events above."));
+            return;
+        }
+        if (user.blocked()) {
+            actions.getChildren().add(new Label(
+                    user.name() + " has spent past zero and can take no further part in the market."));
+            return;
+        }
+        EventInfoDto event = role.event();
+        if ("Not started".equals(event.status())) {
+            actions.getChildren().add(role.runsIt()
+                    ? openPanel(event, user)
+                    : new Label("This event has not been started by its market maker yet."));
+            return;
+        }
+        if ("Closed".equals(event.status())) {
+            actions.getChildren().add(new Label("This event is closed. Nothing more can be done here."));
+            return;
+        }
+        actions.getChildren().add("Order book".equals(event.methodKind())
+                ? orderPanel(event, user)
+                : lmsrPanel(event, user));
+        if (role.runsIt()) {
+            actions.getChildren().add(closePanel(event, user));
+        }
+    }
+
+    private Node openPanel(EventInfoDto event, UserDto user) {
+        Button open = new Button("Open this event");
+        open.getStyleClass().add("primary-button");
+        open.setOnAction(ignored -> attempt(() -> {
+            engine.openEvent(event.number(), user.number());
+            main.setStatus(user.name() + " opened \"" + event.name() + "\".");
+        }));
+        return new VBox(6, new Label("Opening this event will cost " + user.name()
+                + " whatever it takes to fund it, out of their own account."), open);
+    }
+
+    private Node lmsrPanel(EventInfoDto event, UserDto user) {
+        ChoiceBox<String> option = optionChoice(event);
+        Spinner<Integer> quantity = quantitySpinner();
+
+        Button buy = new Button("Buy");
+        buy.getStyleClass().add("primary-button");
+        buy.setOnAction(ignored -> attempt(() -> {
+            engine.buyShares(event.number(), user.number(),
+                    option.getSelectionModel().getSelectedIndex() + 1, quantity.getValue());
+            main.setStatus(user.name() + " bought " + quantity.getValue() + " shares.");
+        }));
+
+        Button sell = new Button("Sell");
+        sell.setOnAction(ignored -> attempt(() -> {
+            engine.sellShares(event.number(), user.number(),
+                    option.getSelectionModel().getSelectedIndex() + 1, quantity.getValue());
+            main.setStatus(user.name() + " sold " + quantity.getValue() + " shares.");
+        }));
+
+        HBox row = new HBox(8, new Label("Option"), option, new Label("Shares"), quantity, buy, sell);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return new VBox(6, new Label("Shares are bought from and sold back to the event itself."), row);
+    }
+
+    private Node orderPanel(EventInfoDto event, UserDto user) {
+        ChoiceBox<String> option = optionChoice(event);
+        ChoiceBox<OrderSide> side = new ChoiceBox<>(
+                FXCollections.observableArrayList(OrderSide.BUY, OrderSide.SELL));
+        side.getSelectionModel().selectFirst();
+        Spinner<Integer> quantity = quantitySpinner();
+        TextField price = new TextField("0.50");
+        price.setPrefWidth(80);
+
+        Button place = new Button("Place order");
+        place.getStyleClass().add("primary-button");
+        place.setOnAction(ignored -> attempt(() -> {
+            double asked = parsePrice(price.getText());
+            List<?> trades = engine.submitOrder(event.number(), user.number(),
+                    option.getSelectionModel().getSelectedIndex() + 1,
+                    side.getValue(), quantity.getValue(), asked);
+            main.setStatus(trades.isEmpty()
+                    ? "The order is waiting in the book."
+                    : "The order went through in " + trades.size() + " trade(s).");
+        }));
+
+        HBox row = new HBox(8, new Label("Option"), option, new Label("Side"), side,
+                new Label("Shares"), quantity, new Label("Price"), price, place);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return new VBox(6, new Label("Orders meet other people. Anything unmatched waits in the book."), row);
+    }
+
+    private Node closePanel(EventInfoDto event, UserDto user) {
+        ChoiceBox<String> option = optionChoice(event);
+        Button close = new Button("Close on this outcome");
+        close.setOnAction(ignored -> attempt(() -> {
+            engine.closeEvent(event.number(), user.number(),
+                    option.getSelectionModel().getSelectedIndex() + 1);
+            main.setStatus("\"" + event.name() + "\" is closed. Holders of the winning option were paid.");
+        }));
+        HBox row = new HBox(8, new Label("Winning option"), option, close);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return new VBox(6, new Separator(),
+                new Label("As market maker, " + user.name() + " decides this event. This cannot be undone."),
+                row);
+    }
+
+    private ChoiceBox<String> optionChoice(EventInfoDto event) {
+        ChoiceBox<String> choice = new ChoiceBox<>(
+                FXCollections.observableArrayList(event.optionNames()));
+        choice.getSelectionModel().selectFirst();
+        return choice;
+    }
+
+    private Spinner<Integer> quantitySpinner() {
+        Spinner<Integer> spinner = new Spinner<>(1, 1_000_000, 10);
+        spinner.setEditable(true);
+        spinner.setPrefWidth(100);
+        return spinner;
+    }
+
+    private double parsePrice(String text) {
+        try {
+            return Double.parseDouble(text.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("\"" + text.trim()
+                    + "\" is not a price. Please type a number, such as 0.50.");
+        }
+    }
+
+    /** Carries an action out, tells the user if it could not be done, and redraws either way. */
+    private void attempt(Runnable action) {
+        try {
+            action.run();
+        } catch (GuessMarketException | IllegalArgumentException e) {
+            main.reportFailure(e);
+        }
+        main.refreshEverything();
+    }
+
+    private static TableColumn<UserDto, String> column(String title, Function<UserDto, String> value,
+                                                       double width) {
+        TableColumn<UserDto, String> column = new TableColumn<>(title);
+        column.setCellValueFactory(row -> new SimpleStringProperty(value.apply(row.getValue())));
+        column.setPrefWidth(width);
+        return column;
+    }
+}
