@@ -10,6 +10,11 @@ tools/
 # and has no business in a public repository; README.md is the public-facing document instead.
 docs/readme.docx
 
+### JavaFX SDK ###
+# 12 MB of third-party binaries. They ship inside the submission zip, but there is no reason to
+# carry them in the history: README.md says which build to fetch and where to unpack it.
+lib/javafx/
+
 ### graphify ###
 # Local working directory of the graphify tool. Everything in it is generated from the source in
 # seconds by "graphify extract . --code-only", and the graph alone runs to well over a megabyte,

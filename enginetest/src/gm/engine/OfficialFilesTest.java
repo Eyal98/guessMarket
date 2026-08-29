@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The sample files published with the exercise, exactly as they were handed out.
+ * The exercise 1 sample files published with the course, exactly as they were handed out.
  * <p>
  * These are the files the work will actually be marked against, so they are pinned here rather than
  * only tried by hand: the two sound ones must load with the right contents, and each faulty one must
@@ -30,7 +30,7 @@ class OfficialFilesTest {
     private final GuessMarketEngine engine = new GuessMarketEngineImpl();
 
     private static String official(String fileName) {
-        return TestFiles.path("official/" + fileName);
+        return TestFiles.path("ex1/" + fileName);
     }
 
     @Test

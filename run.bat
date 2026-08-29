@@ -2,19 +2,21 @@
 rem ---------------------------------------------------------------------------
 rem  Starts Guess Market.
 rem
-rem  Keep this file next to guess-market.jar and engine.jar. Java 25 or newer
-rem  must be installed and "java" must be on the PATH.
+rem  Keep this file next to guess-market.jar, engine.jar and the lib folder.
+rem  Java 25 must be installed and "java" must be on the PATH. JavaFX travels
+rem  with the program, so nothing else needs installing.
 rem ---------------------------------------------------------------------------
 setlocal
 
-rem Work from the folder this file sits in, whatever folder it was started from. Without this, a
-rem relative path typed at the prompt, such as test-files\single.xml, would be looked for wherever
-rem the command prompt happened to be rather than next to the program. pushd is used instead of cd
-rem so that running from a network share still works.
+rem Work from the folder this file sits in, whatever folder it was started from,
+rem so a relative path is looked for next to the program rather than wherever
+rem the command prompt happened to be. pushd is used instead of cd so that
+rem running from a network share still works.
 pushd "%~dp0"
 
 set HERE=%~dp0
 set APP=%HERE%guess-market.jar
+set FX=%HERE%lib\javafx\lib
 if not exist "%APP%" set APP=%HERE%build\guess-market.jar
 
 java -version >nul 2>&1
@@ -39,7 +41,18 @@ if not exist "%APP%" (
     exit /b 1
 )
 
-java -jar "%APP%"
+if not exist "%FX%\javafx.controls.jar" (
+    echo.
+    echo Cannot find the JavaFX libraries at "%FX%".
+    echo The lib folder travels with the program and must sit next to guess-market.jar.
+    echo Please unpack the whole submission into one folder and try again.
+    echo.
+    popd
+    pause
+    exit /b 1
+)
+
+java --enable-native-access=javafx.graphics --module-path "%FX%" --add-modules javafx.controls,javafx.fxml -jar "%APP%"
 set EXITCODE=%ERRORLEVEL%
 
 if not "%EXITCODE%"=="0" (
@@ -50,6 +63,5 @@ if not "%EXITCODE%"=="0" (
 )
 
 popd
-echo.
-pause
+if not "%EXITCODE%"=="0" pause
 exit /b %EXITCODE%
