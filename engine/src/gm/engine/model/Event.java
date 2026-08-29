@@ -151,6 +151,9 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
     /** A short description of how this event is traded, for display. */
     public abstract String methodDescription();
 
+    /** Which of the two markets this is, in one word, for filtering and grouping. */
+    public abstract String methodKind();
+
     /**
      * Anything the event itself must do once it has been opened and paid for. LMSR has nothing to do;
      * an order book hands the market maker the stock they have just bought.

@@ -46,6 +46,11 @@ public final class LmsrEvent extends Event {
         return method.describe();
     }
 
+    @Override
+    public String methodKind() {
+        return "LMSR";
+    }
+
     /** The current value of one option, between 0 and 1. */
     public double valueOf(int optionIndex) {
         return method.optionValue(sharesPerOption(), optionIndex);

@@ -74,6 +74,11 @@ public final class OrderBookEvent extends Event {
                 + ", mint " + (allowMint ? "allowed" : "not allowed") + ")";
     }
 
+    @Override
+    public String methodKind() {
+        return "Order book";
+    }
+
     /**
      * Hands the market maker the stock they have just paid for: one share of every option for each
      * base value spent, with the money they paid split evenly across the options.

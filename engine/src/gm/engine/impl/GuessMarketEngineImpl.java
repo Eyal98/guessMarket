@@ -6,13 +6,21 @@ import gm.engine.api.NoFileLoadedException;
 import gm.engine.api.dto.EventInfoDto;
 import gm.engine.api.dto.LoadResultDto;
 import gm.engine.api.dto.MarketStateDto;
+import gm.engine.api.dto.OptionHoldingDto;
 import gm.engine.api.dto.OptionStateDto;
+import gm.engine.api.dto.ParticipationDto;
+import gm.engine.api.dto.PurchaseResultDto;
+import gm.engine.api.dto.UserDetailDto;
+import gm.engine.api.dto.UserDto;
 import gm.engine.api.dto.TradeDto;
 import gm.engine.model.Commission;
 import gm.engine.model.Event;
+import gm.engine.model.Holding;
 import gm.engine.model.LmsrEvent;
+import gm.engine.model.User;
 import gm.engine.model.EventOption;
 import gm.engine.model.SystemState;
+import gm.engine.model.CommissionType;
 import gm.engine.model.Trade;
 import gm.engine.persistence.StateSerializer;
 import gm.engine.xml.EventsFileLoader;
@@ -65,6 +73,70 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
     }
 
     @Override
+    public List<UserDto> listUsers() {
+        List<User> users = currentState().users();
+        List<UserDto> summaries = new ArrayList<>();
+        for (int i = 0; i < users.size(); i++) {
+            summaries.add(summaryOf(users.get(i), i + 1));
+        }
+        return List.copyOf(summaries);
+    }
+
+    @Override
+    public UserDetailDto userDetail(int userNumber) {
+        User user = userAt(userNumber);
+        List<String> runs = new ArrayList<>();
+        List<ParticipationDto> participations = new ArrayList<>();
+        List<Event> events = currentState().events();
+        for (int i = 0; i < events.size(); i++) {
+            Event event = events.get(i);
+            if (event.marketMaker() == user) {
+                runs.add(event.name());
+            }
+            if (event.participants().contains(user)) {
+                participations.add(participationOf(event, i + 1, user));
+            }
+        }
+        return new UserDetailDto(userNumber, user.name(), user.account().balance(), user.isBlocked(),
+                List.copyOf(runs), List.copyOf(participations));
+    }
+
+    @Override
+    public EventInfoDto openEvent(int eventNumber, int userNumber) {
+        Event event = eventAt(eventNumber);
+        User actor = userAt(userNumber);
+        asSelectionFailure(() -> event.open(actor));
+        return infoOf(event, eventNumber);
+    }
+
+    @Override
+    public PurchaseResultDto buyShares(int eventNumber, int userNumber, int optionNumber, long quantity) {
+        LmsrEvent event = lmsrEventAt(eventNumber);
+        User buyer = userAt(userNumber);
+        int optionIndex = optionIndexIn(event, optionNumber);
+        Trade trade = asSelectionFailure(() -> event.buy(buyer, optionIndex, quantity));
+        return receiptFor(trade, event, eventNumber);
+    }
+
+    @Override
+    public PurchaseResultDto sellShares(int eventNumber, int userNumber, int optionNumber, long quantity) {
+        LmsrEvent event = lmsrEventAt(eventNumber);
+        User seller = userAt(userNumber);
+        int optionIndex = optionIndexIn(event, optionNumber);
+        Trade trade = asSelectionFailure(() -> event.sell(seller, optionIndex, quantity));
+        return receiptFor(trade, event, eventNumber);
+    }
+
+    @Override
+    public MarketStateDto closeEvent(int eventNumber, int userNumber, int winningOptionNumber) {
+        Event event = eventAt(eventNumber);
+        User actor = userAt(userNumber);
+        int optionIndex = optionIndexIn(event, winningOptionNumber);
+        asSelectionFailure(() -> event.close(actor, optionIndex));
+        return stateOf(event, eventNumber);
+    }
+
+    @Override
     public String saveState(String pathWithoutExtension) {
         return serializer.save(currentState(), pathWithoutExtension);
     }
@@ -79,6 +151,78 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
             throw new NoFileLoadedException();
         }
         return state;
+    }
+
+    /**
+     * Turns a refusal from the model into one the caller was told to expect. The model throws plain
+     * state and argument failures because it knows nothing of who is calling; this interface promises
+     * a single family of failures, each already carrying a message fit to show.
+     */
+    private void asSelectionFailure(Runnable action) {
+        try {
+            action.run();
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            throw new InvalidSelectionException(e.getMessage());
+        }
+    }
+
+    private <T> T asSelectionFailure(java.util.function.Supplier<T> action) {
+        try {
+            return action.get();
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            throw new InvalidSelectionException(e.getMessage());
+        }
+    }
+
+    private UserDto summaryOf(User user, int userNumber) {
+        return new UserDto(userNumber, user.name(), user.account().balance(), user.isBlocked());
+    }
+
+    private ParticipationDto participationOf(Event event, int eventNumber, User user) {
+        Holding holding = event.holdingOf(user);
+        List<OptionHoldingDto> options = new ArrayList<>();
+        for (int i = 0; i < event.options().size(); i++) {
+            options.add(new OptionHoldingDto(i + 1, event.options().get(i).name(),
+                    holding.shares(i), holding.paidFor(i)));
+        }
+        List<Trade> theirs = event.history().stream()
+                .filter(trade -> trade.userName().equals(user.name()))
+                .toList();
+        return new ParticipationDto(infoOf(event, eventNumber), List.copyOf(options),
+                holding.commissionPaid(), holding.netResult(), newestFirst(theirs));
+    }
+
+    private PurchaseResultDto receiptFor(Trade trade, LmsrEvent event, int eventNumber) {
+        return new PurchaseResultDto(trade.optionName(), trade.quantity(), trade.sharesCost(),
+                trade.commission(), trade.totalPaid(),
+                event.commission().type() == CommissionType.ON_CLOSE, stateOf(event, eventNumber));
+    }
+
+    private User userAt(int userNumber) {
+        List<User> users = currentState().users();
+        if (userNumber < 1 || userNumber > users.size()) {
+            throw new InvalidSelectionException("There is no user number " + userNumber + "."
+                    + " Please choose a number between 1 and " + users.size() + ".");
+        }
+        return users.get(userNumber - 1);
+    }
+
+    private LmsrEvent lmsrEventAt(int eventNumber) {
+        Event event = eventAt(eventNumber);
+        if (!(event instanceof LmsrEvent lmsr)) {
+            throw new InvalidSelectionException("\"" + event.name() + "\" is traded through an order book,"
+                    + " where shares are bought from other people rather than from the event.");
+        }
+        return lmsr;
+    }
+
+    private int optionIndexIn(Event event, int optionNumber) {
+        int optionCount = event.options().size();
+        if (optionNumber < 1 || optionNumber > optionCount) {
+            throw new InvalidSelectionException("The event \"" + event.name() + "\" has no option number "
+                    + optionNumber + ". Please choose a number between 1 and " + optionCount + ".");
+        }
+        return optionNumber - 1;
     }
 
     private Event eventAt(int eventNumber) {
@@ -106,7 +250,8 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
         return new EventInfoDto(eventNumber, event.id(), event.name(), event.description(),
                 commission.percent(), commission.type().fileValue(), commission.type().displayName(),
                 event.options().stream().map(EventOption::name).toList(),
-                event.status().displayName(), event.methodDescription());
+                event.status().displayName(), event.methodDescription(), event.methodKind(),
+                event.marketMaker() == null ? null : event.marketMaker().name());
     }
 
     private MarketStateDto stateOf(Event event, int eventNumber) {

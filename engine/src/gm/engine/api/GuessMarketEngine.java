@@ -3,6 +3,9 @@ package gm.engine.api;
 import gm.engine.api.dto.EventInfoDto;
 import gm.engine.api.dto.LoadResultDto;
 import gm.engine.api.dto.MarketStateDto;
+import gm.engine.api.dto.PurchaseResultDto;
+import gm.engine.api.dto.UserDetailDto;
+import gm.engine.api.dto.UserDto;
 
 import java.util.List;
 
@@ -57,9 +60,61 @@ public interface GuessMarketEngine {
      */
     MarketStateDto marketState(int eventNumber);
 
-    // Trading and closing leave this interface for the moment. In this version both need to know
-    // which user is acting, and the engine cannot say until the loader reads the users out of the
-    // file. They return, user aware, in the next step.
+    /**
+     * Every user in the market, in file order.
+     *
+     * @throws NoFileLoadedException if no file has been loaded
+     */
+    List<UserDto> listUsers();
+
+    /**
+     * Everything worth showing about one user: their money, the events they run, and what they hold.
+     *
+     * @param userNumber the user's number, counted from 1
+     * @throws InvalidSelectionException if there is no such user
+     */
+    UserDetailDto userDetail(int userNumber);
+
+    /**
+     * Starts an event trading, at its market maker's expense.
+     *
+     * @param eventNumber the event's number, counted from 1
+     * @param userNumber  the user asking, who must be the event's market maker
+     * @throws InvalidSelectionException if the numbers name nothing, if the user does not run this
+     *                                   event, if it has already started, or if they cannot afford it
+     */
+    EventInfoDto openEvent(int eventNumber, int userNumber);
+
+    /**
+     * Buys shares of one option for a user.
+     *
+     * @param eventNumber  the event's number, counted from 1
+     * @param userNumber   the buyer's number, counted from 1
+     * @param optionNumber the option's number within the event, counted from 1
+     * @param quantity     how many shares to buy, at least 1
+     * @throws InvalidSelectionException if anything named does not exist, the quantity is not
+     *                                   positive, the event is not trading, or the buyer is blocked
+     */
+    PurchaseResultDto buyShares(int eventNumber, int userNumber, int optionNumber, long quantity);
+
+    /**
+     * Sells shares of one option back to the event.
+     *
+     * @throws InvalidSelectionException if anything named does not exist, the seller does not hold
+     *                                   that many shares, the event is not trading, or they are blocked
+     */
+    PurchaseResultDto sellShares(int eventNumber, int userNumber, int optionNumber, long quantity);
+
+    /**
+     * Decides an event and pays the holders of the winning option.
+     *
+     * @param eventNumber         the event's number, counted from 1
+     * @param userNumber          the user asking, who must be the event's market maker
+     * @param winningOptionNumber the option the event ended on, counted from 1
+     * @throws InvalidSelectionException if the numbers name nothing, the user does not run this event,
+     *                                   or it is not currently trading
+     */
+    MarketStateDto closeEvent(int eventNumber, int userNumber, int winningOptionNumber);
 
 
     /**

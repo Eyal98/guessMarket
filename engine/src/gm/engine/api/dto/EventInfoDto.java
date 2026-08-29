@@ -24,8 +24,11 @@ import java.util.List;
  * @param optionNames       the possible outcomes, in the order they were declared
  * @param status            whether the event is still trading, ready to be displayed
  * @param tradingMethod     a short description of the pricing method, for example "LMSR (b=100)"
+ * @param methodKind        which market this is in one word, for filtering: LMSR or Order book
+ * @param marketMakerName   the user who runs this event
  */
 public record EventInfoDto(int number, int id, String name, String description, int commissionPercent,
                            String commissionType, String commissionTiming, List<String> optionNames,
-                           String status, String tradingMethod) implements Serializable {
+                           String status, String tradingMethod, String methodKind,
+                           String marketMakerName) implements Serializable {
 }
