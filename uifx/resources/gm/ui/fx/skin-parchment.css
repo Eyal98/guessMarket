@@ -1,0 +1,26 @@
+/* Ink on old paper, set in a serif face. Same five variables, warm instead of cold. */
+.root {
+    -fx-font-family: "Georgia", "Times New Roman", serif;
+    -fx-base: #ece0c6;
+    -fx-background: #faf3e2;
+    -fx-control-inner-background: #fffaf0;
+    -fx-accent: #a9782f;
+    -fx-focus-color: #c9973f;
+    -fx-text-background-color: #3a2f1c;
+}
+
+.root-pane { -fx-background-color: #faf3e2; }
+.header { -fx-background-color: #6b4f22; }
+.app-title { -fx-text-fill: #fdf6e6; }
+.file-path { -fx-text-fill: #e0cfa6; }
+.status-bar { -fx-background-color: #ece0c6; -fx-text-fill: #4a3b1e; }
+
+.primary-button { -fx-background-color: #8c6a2c; -fx-text-fill: #fdf6e6; }
+.primary-button:hover { -fx-background-color: #a9782f; }
+
+.detail-title { -fx-text-fill: #6b4f22; }
+.section-title { -fx-text-fill: #8c6a2c; }
+.option-title { -fx-text-fill: #3a2f1c; }
+.caption { -fx-text-fill: #7a6740; }
+.balance { -fx-text-fill: #6b4f22; }
+.filter-caption { -fx-text-fill: #7a6740; }

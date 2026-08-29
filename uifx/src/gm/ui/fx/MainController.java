@@ -8,6 +8,7 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Tab;
@@ -35,6 +36,7 @@ public final class MainController {
     @FXML private Label loadedPathLabel;
     @FXML private Label statusLabel;
     @FXML private ProgressBar loadProgress;
+    @FXML private ComboBox<Skin> skinChooser;
     @FXML private TabPane tabs;
     @FXML private Tab eventsTab;
     @FXML private Tab usersTab;
@@ -50,6 +52,21 @@ public final class MainController {
         this.users = users;
         eventsTab.setContent(events.view());
         usersTab.setContent(users.view());
+        offerTheSkins();
+    }
+
+    /**
+     * Fills the skin chooser and lets it redress the screen. It starts on the plain look, because a
+     * bonus is meant to be switched on deliberately rather than found already running.
+     */
+    private void offerTheSkins() {
+        skinChooser.getItems().setAll(Skin.values());
+        skinChooser.setValue(Skin.DEFAULT);
+        skinChooser.valueProperty().addListener((ignored, was, now) -> {
+            if (now != null && loadButton.getScene() != null) {
+                now.applyTo(loadButton.getScene());
+            }
+        });
     }
 
     @FXML

@@ -1,0 +1,18 @@
+/* The plain look, and the one the program starts in. Navy on a light grey desk. */
+.root { -fx-font-family: "Segoe UI", "Dialog", sans-serif; }
+
+.root-pane { -fx-background-color: #f5f6f8; }
+.header { -fx-background-color: #1f3864; }
+.app-title { -fx-text-fill: white; }
+.file-path { -fx-text-fill: #d6ddf0; }
+.status-bar { -fx-background-color: #e4e7ee; -fx-text-fill: #2a2f3a; }
+
+.primary-button { -fx-background-color: #2e5496; -fx-text-fill: white; }
+.primary-button:hover { -fx-background-color: #3a68b8; }
+
+.detail-title { -fx-text-fill: #1f3864; }
+.section-title { -fx-text-fill: #2e5496; }
+.option-title { -fx-text-fill: #1f3864; }
+.caption { -fx-text-fill: #55607a; }
+.balance { -fx-text-fill: #1f3864; }
+.filter-caption { -fx-text-fill: #55607a; }

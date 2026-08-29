@@ -1,0 +1,40 @@
+/*
+  A dark look for a dark room. The five variables at the top are the ones the standard JavaFX theme
+  derives everything else from, so setting them repaints the tables, buttons and boxes as well —
+  which is why this file does not have to name every control it wants to change.
+*/
+.root {
+    -fx-font-family: "Consolas", "Menlo", monospace;
+    -fx-base: #2b2f3a;
+    -fx-background: #22252e;
+    -fx-control-inner-background: #2b2f3a;
+    -fx-accent: #4c7fd4;
+    -fx-focus-color: #6f9ee8;
+    -fx-text-background-color: #e6e8ee;
+    /*
+      A chosen row keeps a light highlight once the table loses focus, which happens the moment you
+      click a button beside it — and pale grey lettering on pale grey is unreadable. Both highlights
+      are named here so a chosen row stays chosen-looking whether or not the table has the focus.
+    */
+    -fx-selection-bar-non-focused: #3d4455;
+}
+
+.table-row-cell:selected,
+.table-row-cell:selected .table-cell,
+.list-cell:selected { -fx-text-fill: #ffffff; }
+
+.root-pane { -fx-background-color: #22252e; }
+.header { -fx-background-color: #12141a; }
+.app-title { -fx-text-fill: #7fd4c1; }
+.file-path { -fx-text-fill: #8d94a6; }
+.status-bar { -fx-background-color: #12141a; -fx-text-fill: #8d94a6; }
+
+.primary-button { -fx-background-color: #2f7d68; -fx-text-fill: #eafff8; }
+.primary-button:hover { -fx-background-color: #3fa287; }
+
+.detail-title { -fx-text-fill: #7fd4c1; }
+.section-title { -fx-text-fill: #6f9ee8; }
+.option-title { -fx-text-fill: #e6e8ee; }
+.caption { -fx-text-fill: #8d94a6; }
+.balance { -fx-text-fill: #7fd4c1; }
+.filter-caption { -fx-text-fill: #8d94a6; }

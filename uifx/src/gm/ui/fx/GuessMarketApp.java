@@ -35,7 +35,7 @@ public class GuessMarketApp extends Application {
         main.start(engine, events, users);
 
         Scene scene = new Scene(root, INITIAL_WIDTH, INITIAL_HEIGHT);
-        scene.getStylesheets().add(getClass().getResource("guess-market.css").toExternalForm());
+        Skin.DEFAULT.applyTo(scene);
 
         stage.setTitle("Guess Market");
         stage.setScene(scene);
