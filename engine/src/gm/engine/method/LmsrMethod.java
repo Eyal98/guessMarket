@@ -56,6 +56,21 @@ public final class LmsrMethod implements TradingMethod {
     }
 
     @Override
+    public double sellProceeds(long[] shares, int optionIndex, long quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException(
+                    "The number of shares to sell must be positive, but it is " + quantity + ".");
+        }
+        if (quantity > shares[optionIndex]) {
+            throw new IllegalArgumentException("Only " + shares[optionIndex]
+                    + " shares of that option have ever been bought, so " + quantity + " cannot be sold back.");
+        }
+        long[] sharesAfterSale = shares.clone();
+        sharesAfterSale[optionIndex] -= quantity;
+        return cost(shares) - cost(sharesAfterSale);
+    }
+
+    @Override
     public String describe() {
         return "LMSR (b=" + liquidity + ")";
     }

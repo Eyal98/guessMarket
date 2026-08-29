@@ -117,4 +117,46 @@ class LmsrMethodTest {
     void describesItself() {
         assertEquals("LMSR (b=100)", method.describe());
     }
+
+    @Test
+    @DisplayName("Selling back everything just bought returns exactly what it cost")
+    void sellingIsTheMirrorOfBuying() {
+        double cost = method.buyCost(new long[] {0, 0}, 0, 100);
+
+        double proceeds = method.sellProceeds(new long[] {100, 0}, 0, 100);
+
+        assertEquals(cost, proceeds, TOLERANCE);
+    }
+
+    @Test
+    @DisplayName("Selling part of a position returns less than the whole position cost")
+    void sellingPartReturnsPartOfTheMoney() {
+        double proceeds = method.sellProceeds(new long[] {100, 0}, 0, 40);
+
+        assertTrue(proceeds > 0, "selling must return money, but returned " + proceeds);
+        assertTrue(proceeds < method.buyCost(new long[] {0, 0}, 0, 100),
+                "selling 40 of 100 cannot return more than the 100 cost");
+    }
+
+    @Test
+    @DisplayName("Selling pushes the option's value back down")
+    void sellingLowersTheValue() {
+        double before = method.optionValue(new long[] {100, 0}, 0);
+        double after = method.optionValue(new long[] {60, 0}, 0);
+
+        assertTrue(after < before, "expected the value to fall from " + before + " but it was " + after);
+    }
+
+    @Test
+    @DisplayName("The market cannot sell back more shares than exist in it")
+    void sellingMoreThanExistsIsRejected() {
+        assertThrows(IllegalArgumentException.class, () -> method.sellProceeds(new long[] {10, 0}, 0, 11));
+    }
+
+    @Test
+    @DisplayName("Selling a non positive amount of shares is rejected")
+    void sellQuantityMustBePositive() {
+        assertThrows(IllegalArgumentException.class, () -> method.sellProceeds(new long[] {10, 0}, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> method.sellProceeds(new long[] {10, 0}, 0, -3));
+    }
 }

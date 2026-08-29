@@ -37,6 +37,15 @@ public sealed interface TradingMethod extends Serializable permits LmsrMethod {
     double buyCost(long[] shares, int optionIndex, long quantity);
 
     /**
+     * What selling shares of one option back to the event returns, before commission.
+     *
+     * @param shares      how many shares of every option have been bought so far
+     * @param optionIndex the zero based index of the option being sold
+     * @param quantity    how many shares to sell, always positive and never more than the market holds
+     */
+    double sellProceeds(long[] shares, int optionIndex, long quantity);
+
+    /**
      * A short human readable description of the method and its parameters, for display by a user
      * interface.
      */
