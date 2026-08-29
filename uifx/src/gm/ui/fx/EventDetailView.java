@@ -36,11 +36,13 @@ import java.util.function.Function;
 public final class EventDetailView {
 
     private final GuessMarketEngine engine;
+    private final Animations animations;
     private final VBox content = new VBox(12);
     private final ScrollPane root = new ScrollPane(content);
 
-    public EventDetailView(GuessMarketEngine engine) {
+    public EventDetailView(GuessMarketEngine engine, Animations animations) {
         this.engine = engine;
+        this.animations = animations;
         content.setPadding(new Insets(12));
         root.setFitToWidth(true);
         root.setPannable(true);
@@ -68,6 +70,7 @@ public final class EventDetailView {
         } else {
             showLmsr(engine.marketState(event.number()));
         }
+        animations.play(Animations.Motion.APPEARING, content);
     }
 
     private Node heading(EventInfoDto event) {

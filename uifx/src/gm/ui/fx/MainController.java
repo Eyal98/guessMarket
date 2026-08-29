@@ -8,6 +8,7 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
@@ -36,6 +37,7 @@ public final class MainController {
     @FXML private Label loadedPathLabel;
     @FXML private Label statusLabel;
     @FXML private ProgressBar loadProgress;
+    @FXML private CheckBox animationsSwitch;
     @FXML private ComboBox<Skin> skinChooser;
     @FXML private TabPane tabs;
     @FXML private Tab eventsTab;
@@ -44,15 +46,26 @@ public final class MainController {
     private GuessMarketEngine engine;
     private EventsController events;
     private UsersController users;
+    private Animations animations;
 
     /** Called once, after the screen is built, to give it the engine and its two panes. */
-    public void start(GuessMarketEngine engine, EventsController events, UsersController users) {
+    public void start(GuessMarketEngine engine, EventsController events, UsersController users,
+                      Animations animations) {
         this.engine = engine;
         this.events = events;
         this.users = users;
+        this.animations = animations;
         eventsTab.setContent(events.view());
         usersTab.setContent(users.view());
         offerTheSkins();
+        offerTheAnimations();
+    }
+
+    /** Wires the movement switch. It starts clear, so the screen is still until somebody asks. */
+    private void offerTheAnimations() {
+        animationsSwitch.setSelected(animations.isOn());
+        animationsSwitch.selectedProperty()
+                .addListener((ignored, was, now) -> animations.setOn(now));
     }
 
     /**

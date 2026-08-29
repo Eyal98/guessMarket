@@ -44,6 +44,7 @@ public final class UsersController {
 
     private final GuessMarketEngine engine;
     private final MainController main;
+    private final Animations animations;
 
     private final SplitPane root = new SplitPane();
     private final TableView<UserDto> users = new TableView<>();
@@ -66,9 +67,10 @@ public final class UsersController {
         }
     }
 
-    public UsersController(GuessMarketEngine engine, MainController main) {
+    public UsersController(GuessMarketEngine engine, MainController main, Animations animations) {
         this.engine = engine;
         this.main = main;
+        this.animations = animations;
         build();
     }
 
@@ -317,14 +319,24 @@ public final class UsersController {
         }
     }
 
-    /** Carries an action out, tells the user if it could not be done, and redraws either way. */
+    /**
+     * Carries an action out, tells the user if it could not be done, and redraws either way.
+     * <p>
+     * This is the one place every action passes through, which makes it the right place to say so
+     * without words: money that has just moved swells and settles, and a panel whose action was
+     * refused shakes its head. Both do nothing at all unless movement has been switched on.
+     */
     private void attempt(Runnable action) {
+        boolean worked = true;
         try {
             action.run();
         } catch (GuessMarketException | IllegalArgumentException e) {
+            worked = false;
             main.reportFailure(e);
         }
         main.refreshEverything();
+        animations.play(worked ? Animations.Motion.PULSING : Animations.Motion.REFUSING,
+                worked ? userBalance : actions);
     }
 
     private static TableColumn<UserDto, String> column(String title, Function<UserDto, String> value,

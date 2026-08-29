@@ -30,9 +30,10 @@ public class GuessMarketApp extends Application {
         Parent root = loader.load();
         MainController main = loader.getController();
 
-        EventsController events = new EventsController(engine, new EventDetailView(engine));
-        UsersController users = new UsersController(engine, main);
-        main.start(engine, events, users);
+        Animations animations = new Animations();
+        EventsController events = new EventsController(engine, new EventDetailView(engine, animations));
+        UsersController users = new UsersController(engine, main, animations);
+        main.start(engine, events, users, animations);
 
         Scene scene = new Scene(root, INITIAL_WIDTH, INITIAL_HEIGHT);
         Skin.DEFAULT.applyTo(scene);
