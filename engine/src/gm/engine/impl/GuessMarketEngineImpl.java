@@ -7,7 +7,11 @@ import gm.engine.api.dto.EventInfoDto;
 import gm.engine.api.dto.LoadResultDto;
 import gm.engine.api.dto.MarketStateDto;
 import gm.engine.api.dto.OptionHoldingDto;
+import gm.engine.api.dto.OptionMarketDto;
 import gm.engine.api.dto.OptionStateDto;
+import gm.engine.api.dto.OrderBookStateDto;
+import gm.engine.api.dto.OrderDto;
+import gm.engine.api.dto.ParticipantDto;
 import gm.engine.api.dto.ParticipationDto;
 import gm.engine.api.dto.PurchaseResultDto;
 import gm.engine.api.dto.UserDetailDto;
@@ -17,6 +21,10 @@ import gm.engine.model.Commission;
 import gm.engine.model.Event;
 import gm.engine.model.Holding;
 import gm.engine.model.LmsrEvent;
+import gm.engine.model.OrderBookEvent;
+import gm.engine.model.orderbook.Order;
+import gm.engine.model.orderbook.OrderBook;
+import gm.engine.model.orderbook.OrderSide;
 import gm.engine.model.User;
 import gm.engine.model.EventOption;
 import gm.engine.model.SystemState;
@@ -128,6 +136,33 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
     }
 
     @Override
+    public OrderBookStateDto orderBookState(int eventNumber) {
+        OrderBookEvent event = orderBookEventAt(eventNumber);
+        List<OptionMarketDto> markets = new ArrayList<>();
+        for (int i = 0; i < event.options().size(); i++) {
+            markets.add(marketOf(event, i));
+        }
+        List<ParticipantDto> participants = new ArrayList<>();
+        for (User user : event.participants()) {
+            participants.add(participantOf(event, user));
+        }
+        return new OrderBookStateDto(infoOf(event, eventNumber), List.copyOf(markets),
+                event.account().balance(), event.commissionCollected(), List.copyOf(participants),
+                event.baseValue(), event.allowsMint(), event.highestAllowedPrice());
+    }
+
+    @Override
+    public List<TradeDto> submitOrder(int eventNumber, int userNumber, int optionNumber, OrderSide side,
+                                      long quantity, double price) {
+        OrderBookEvent event = orderBookEventAt(eventNumber);
+        User trader = userAt(userNumber);
+        int optionIndex = optionIndexIn(event, optionNumber);
+        List<Trade> trades = asSelectionFailure(
+                () -> event.submitOrder(trader, optionIndex, side, quantity, price));
+        return trades.stream().map(GuessMarketEngineImpl::asDto).toList();
+    }
+
+    @Override
     public MarketStateDto closeEvent(int eventNumber, int userNumber, int winningOptionNumber) {
         Event event = eventAt(eventNumber);
         User actor = userAt(userNumber);
@@ -196,6 +231,51 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
         return new PurchaseResultDto(trade.optionName(), trade.quantity(), trade.sharesCost(),
                 trade.commission(), trade.totalPaid(),
                 event.commission().type() == CommissionType.ON_CLOSE, stateOf(event, eventNumber));
+    }
+
+    private OptionMarketDto marketOf(OrderBookEvent event, int optionIndex) {
+        OrderBook book = event.bookFor(optionIndex);
+        return new OptionMarketDto(optionIndex + 1, event.options().get(optionIndex).name(),
+                asDtos(book.bids()), asDtos(book.asks()),
+                orNull(book.lastTradedPrice()), orNull(book.bestBid()), orNull(book.bestAsk()),
+                orNull(book.midPrice()), orNull(book.spread()),
+                event.options().get(optionIndex).sharesBought());
+    }
+
+    private ParticipantDto participantOf(Event event, User user) {
+        Holding holding = event.holdingOf(user);
+        List<OptionHoldingDto> options = new ArrayList<>();
+        for (int i = 0; i < event.options().size(); i++) {
+            options.add(new OptionHoldingDto(i + 1, event.options().get(i).name(),
+                    holding.shares(i), holding.paidFor(i)));
+        }
+        return new ParticipantDto(user.name(), List.copyOf(options), user.isBlocked());
+    }
+
+    private static List<OrderDto> asDtos(List<Order> orders) {
+        return orders.stream()
+                .map(order -> new OrderDto(order.user().name(), order.side().displayName(),
+                        order.remaining(), order.price()))
+                .toList();
+    }
+
+    /** A price the book cannot supply is absent, not nought, and reaches the caller as null. */
+    private static Double orNull(java.util.OptionalDouble value) {
+        return value.isPresent() ? value.getAsDouble() : null;
+    }
+
+    private static TradeDto asDto(Trade trade) {
+        return new TradeDto(trade.optionName(), trade.quantity(), trade.sharesCost(),
+                trade.commission(), trade.totalPaid());
+    }
+
+    private OrderBookEvent orderBookEventAt(int eventNumber) {
+        Event event = eventAt(eventNumber);
+        if (!(event instanceof OrderBookEvent book)) {
+            throw new InvalidSelectionException("\"" + event.name() + "\" is priced by a formula rather"
+                    + " than by an order book, so it has no books to show.");
+        }
+        return book;
     }
 
     private User userAt(int userNumber) {

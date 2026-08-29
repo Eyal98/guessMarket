@@ -3,9 +3,12 @@ package gm.engine.api;
 import gm.engine.api.dto.EventInfoDto;
 import gm.engine.api.dto.LoadResultDto;
 import gm.engine.api.dto.MarketStateDto;
+import gm.engine.api.dto.OrderBookStateDto;
 import gm.engine.api.dto.PurchaseResultDto;
+import gm.engine.api.dto.TradeDto;
 import gm.engine.api.dto.UserDetailDto;
 import gm.engine.api.dto.UserDto;
+import gm.engine.model.orderbook.OrderSide;
 
 import java.util.List;
 
@@ -104,6 +107,36 @@ public interface GuessMarketEngine {
      *                                   that many shares, the event is not trading, or they are blocked
      */
     PurchaseResultDto sellShares(int eventNumber, int userNumber, int optionNumber, long quantity);
+
+    /**
+     * Both books of an order book event, what they say about the price of each option, and where every
+     * participant stands.
+     *
+     * @param eventNumber the event's number, counted from 1
+     * @throws InvalidSelectionException if there is no such event, or it is not an order book event
+     */
+    OrderBookStateDto orderBookState(int eventNumber);
+
+    /**
+     * Places an order on one option of an order book event and settles whatever it can at once.
+     * <p>
+     * {@link OrderSide} crosses this boundary as itself rather than as text. It is a plain choice of
+     * two with nothing behind it, so passing it whole costs the caller nothing in coupling and saves
+     * them guessing at a spelling.
+     *
+     * @param eventNumber  the event's number, counted from 1
+     * @param userNumber   the trader's number, counted from 1
+     * @param optionNumber the option's number within the event, counted from 1
+     * @param side         whether they are buying or selling
+     * @param quantity     how many shares, at least 1
+     * @param price        what they will pay, or accept, for each share
+     * @return the trades the order caused, which may be none if it simply rests
+     * @throws InvalidSelectionException if anything named does not exist, the price is not allowed,
+     *                                   the event is not trading, the trader is blocked, or they are
+     *                                   offering shares they do not hold
+     */
+    List<TradeDto> submitOrder(int eventNumber, int userNumber, int optionNumber, OrderSide side,
+                               long quantity, double price);
 
     /**
      * Decides an event and pays the holders of the winning option.
