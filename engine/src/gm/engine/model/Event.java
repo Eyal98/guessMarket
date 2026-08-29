@@ -41,7 +41,7 @@ public final class Event implements Serializable {
     @SuppressWarnings("serial")
     private final List<Trade> history = new ArrayList<>();
 
-    private EventStatus status = EventStatus.OPEN;
+    private EventStatus status = EventStatus.ACTIVE;
     private EventOption winningOption;
     private double commissionCollected;
     private double totalPaidOut;
@@ -159,7 +159,7 @@ public final class Event implements Serializable {
     }
 
     public boolean isOpen() {
-        return status == EventStatus.OPEN;
+        return status.allowsTrading();
     }
 
     /** The option the event ended on, or {@code null} while the event is still open. */

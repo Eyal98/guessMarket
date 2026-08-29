@@ -49,7 +49,7 @@ class OfficialFilesTest {
         assertEquals("on-purchase", event.commissionType());
         assertEquals(List.of("Yes", "No"), event.optionNames());
         assertEquals("LMSR (b=100)", event.tradingMethod());
-        assertEquals("Open", event.status());
+        assertEquals("Active", event.status());
     }
 
     @Test
