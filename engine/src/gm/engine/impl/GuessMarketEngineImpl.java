@@ -1,6 +1,5 @@
 package gm.engine.impl;
 
-import gm.engine.api.EventClosedException;
 import gm.engine.api.GuessMarketEngine;
 import gm.engine.api.InvalidSelectionException;
 import gm.engine.api.NoFileLoadedException;
@@ -8,10 +7,8 @@ import gm.engine.api.dto.EventInfoDto;
 import gm.engine.api.dto.LoadResultDto;
 import gm.engine.api.dto.MarketStateDto;
 import gm.engine.api.dto.OptionStateDto;
-import gm.engine.api.dto.PurchaseResultDto;
 import gm.engine.api.dto.TradeDto;
 import gm.engine.model.Commission;
-import gm.engine.model.CommissionType;
 import gm.engine.model.Event;
 import gm.engine.model.EventOption;
 import gm.engine.model.SystemState;
@@ -66,30 +63,6 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
     }
 
     @Override
-    public PurchaseResultDto buyShares(int eventNumber, int optionNumber, long quantity) {
-        Event event = eventAt(eventNumber);
-        int optionIndex = optionIndexIn(event, optionNumber);
-        requireOpen(event);
-        if (quantity < 1) {
-            throw new InvalidSelectionException("The number of shares to buy must be at least 1, but it is "
-                    + quantity + ".");
-        }
-        Trade trade = event.buy(optionIndex, quantity);
-        return new PurchaseResultDto(trade.optionName(), trade.quantity(), trade.sharesCost(),
-                trade.commission(), trade.totalPaid(),
-                event.commission().type() == CommissionType.ON_CLOSE, stateOf(event, eventNumber));
-    }
-
-    @Override
-    public MarketStateDto closeEvent(int eventNumber, int winningOptionNumber) {
-        Event event = eventAt(eventNumber);
-        int optionIndex = optionIndexIn(event, winningOptionNumber);
-        requireOpen(event);
-        event.close(event.marketMaker(), optionIndex);
-        return stateOf(event, eventNumber);
-    }
-
-    @Override
     public String saveState(String pathWithoutExtension) {
         return serializer.save(currentState(), pathWithoutExtension);
     }
@@ -113,21 +86,6 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
                     + " Please choose a number between 1 and " + events.size() + ".");
         }
         return events.get(eventNumber - 1);
-    }
-
-    private int optionIndexIn(Event event, int optionNumber) {
-        int optionCount = event.options().size();
-        if (optionNumber < 1 || optionNumber > optionCount) {
-            throw new InvalidSelectionException("The event \"" + event.name() + "\" has no option number "
-                    + optionNumber + ". Please choose a number between 1 and " + optionCount + ".");
-        }
-        return optionNumber - 1;
-    }
-
-    private void requireOpen(Event event) {
-        if (!event.isOpen()) {
-            throw new EventClosedException(event.name());
-        }
     }
 
     private List<EventInfoDto> eventsMatching(Predicate<Event> filter) {

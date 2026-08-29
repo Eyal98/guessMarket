@@ -31,4 +31,12 @@ public final class EventOption implements Serializable {
     void addShares(long quantity) {
         sharesBought += quantity;
     }
+
+    void removeShares(long quantity) {
+        if (quantity > sharesBought) {
+            throw new IllegalArgumentException("The market holds only " + sharesBought
+                    + " shares of \"" + name + "\", so " + quantity + " cannot be given back.");
+        }
+        sharesBought -= quantity;
+    }
 }

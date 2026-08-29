@@ -3,7 +3,6 @@ package gm.engine.api;
 import gm.engine.api.dto.EventInfoDto;
 import gm.engine.api.dto.LoadResultDto;
 import gm.engine.api.dto.MarketStateDto;
-import gm.engine.api.dto.PurchaseResultDto;
 
 import java.util.List;
 
@@ -58,31 +57,10 @@ public interface GuessMarketEngine {
      */
     MarketStateDto marketState(int eventNumber);
 
-    /**
-     * Buys shares of one option of an event.
-     *
-     * @param eventNumber  the event's number, counted from 1
-     * @param optionNumber the option's number within the event, counted from 1
-     * @param quantity     how many shares to buy, at least 1
-     * @return what the purchase cost and how the event stands afterwards
-     * @throws NoFileLoadedException     if no file has been loaded
-     * @throws InvalidSelectionException if there is no such event or option, or the quantity is not positive
-     * @throws EventClosedException      if the event has already been closed
-     */
-    PurchaseResultDto buyShares(int eventNumber, int optionNumber, long quantity);
+    // Trading and closing leave this interface for the moment. In this version both need to know
+    // which user is acting, and the engine cannot say until the loader reads the users out of the
+    // file. They return, user aware, in the next step.
 
-    /**
-     * Decides an event: pays the holders of the winning option, takes the closing commission if the
-     * event charges one, and stops any further trading on it.
-     *
-     * @param eventNumber         the event's number, counted from 1
-     * @param winningOptionNumber the number of the option the event ended on, counted from 1
-     * @return the event as it stands once it is closed
-     * @throws NoFileLoadedException     if no file has been loaded
-     * @throws InvalidSelectionException if there is no such event or option
-     * @throws EventClosedException      if the event has already been closed
-     */
-    MarketStateDto closeEvent(int eventNumber, int winningOptionNumber);
 
     /**
      * Writes the whole state of the system, including all trading history, to a file.

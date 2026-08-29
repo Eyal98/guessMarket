@@ -4,10 +4,7 @@ import gm.engine.api.FileLoadException;
 import gm.engine.api.GuessMarketEngine;
 import gm.engine.api.dto.EventInfoDto;
 import gm.engine.api.dto.LoadResultDto;
-import gm.engine.api.dto.MarketStateDto;
-import gm.engine.api.dto.PurchaseResultDto;
 import gm.engine.impl.GuessMarketEngineImpl;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -92,49 +89,5 @@ class OfficialFilesTest {
         assertTrue(report.contains("World Cap Winner"), report);
         assertTrue(report.contains("115"), report);
         assertTrue(report.contains("between 0 and 90"), report);
-    }
-
-    @Test
-    @DisplayName("A faulty official file leaves a sound one loaded and untouched")
-    @Disabled("Waiting on the exercise 2 engine API: an event is now opened by its market maker, and the engine cannot yet be told which user is acting.")
-    void aFaultyFileDoesNotDisturbWhatIsLoaded() {
-        engine.loadEventsFile(official("multiple.xml"));
-        engine.buyShares(1, 1, 100);
-
-        assertThrows(FileLoadException.class, () -> engine.loadEventsFile(official("error-2.xml")));
-        assertThrows(FileLoadException.class, () -> engine.loadEventsFile(official("error-3.xml")));
-
-        assertEquals(3, engine.listEvents().size());
-        assertEquals(100, engine.marketState(1).options().get(0).sharesBought());
-    }
-
-    @Test
-    @DisplayName("Trading on multiple.xml produces the expected money, both commission types")
-    @Disabled("Waiting on the exercise 2 engine API: an event is now opened by its market maker, and the engine cannot yet be told which user is acting.")
-    void tradingOnTheOfficialFileAddsUp() {
-        engine.loadEventsFile(official("multiple.xml"));
-
-        // Event 1: b = 100, 5% charged on purchase.
-        PurchaseResultDto onPurchase = engine.buyShares(1, 1, 100);
-        assertEquals("Hell Yea !", onPurchase.optionName());
-        assertEquals(62.01, onPurchase.sharesCost(), TOLERANCE);
-        assertEquals(3.10, onPurchase.commission(), TOLERANCE);
-        assertEquals(65.11, onPurchase.totalPaid(), TOLERANCE);
-        assertEquals(134.43, onPurchase.stateAfter().eventAccountBalance(), TOLERANCE);
-        assertEquals(0.73, onPurchase.stateAfter().options().get(0).value(), TOLERANCE);
-
-        // Event 2: b = 50, 15% charged when it closes, so nothing is added now.
-        PurchaseResultDto onClose = engine.buyShares(2, 1, 100);
-        assertEquals("Argentina", onClose.optionName());
-        assertEquals(71.69, onClose.sharesCost(), TOLERANCE);
-        assertEquals(0.0, onClose.commission(), TOLERANCE);
-        assertEquals(0.88, onClose.stateAfter().options().get(0).value(), TOLERANCE);
-
-        MarketStateDto closed = engine.closeEvent(2, 1);
-        assertEquals("Argentina", closed.winningOptionName());
-        assertEquals(85.00, closed.totalPaidOut(), TOLERANCE);
-        assertEquals(15.00, closed.commissionCollected(), TOLERANCE);
-        assertEquals(0.0, closed.eventAccountBalance(), TOLERANCE);
-        assertEquals(-359.88, closed.marketMakerBalance(), TOLERANCE);
     }
 }

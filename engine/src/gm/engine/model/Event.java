@@ -5,7 +5,9 @@ import gm.engine.method.TradingMethod;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -40,6 +42,9 @@ public final class Event implements Serializable {
     /** Always an ArrayList, which is serializable; the declared type simply cannot say so. */
     @SuppressWarnings("serial")
     private final List<Trade> history = new ArrayList<>();
+    /** Always a LinkedHashMap, which is serializable; the declared type simply cannot say so. */
+    @SuppressWarnings("serial")
+    private final Map<User, Holding> holdings = new LinkedHashMap<>();
 
     private EventStatus status = EventStatus.NOT_STARTED;
     private User marketMaker;
@@ -103,25 +108,71 @@ public final class Event implements Serializable {
     }
 
     /**
-     * Buys shares of one option and records the trade.
-     *
-     * @param optionIndex the zero based index of the option being bought
-     * @param quantity    how many shares to buy, must be positive
-     * @return the trade that was carried out, including what it cost
+     * Buys shares of one option for a user.
+     * <p>
+     * The price of the shares goes to the event, which is what the event pays out from, and the
+     * commission goes straight into the market maker's own account, because in this version the
+     * commission is their income rather than the event's.
      */
-    public Trade buy(int optionIndex, long quantity) {
-        requireOpen("Shares cannot be bought");
+    public Trade buy(User buyer, int optionIndex, long quantity) {
+        requireTradable("Shares cannot be bought");
+        requireAbleToAct(buyer);
+        requirePositive(quantity, "buy");
+
         EventOption option = options.get(optionIndex);
         double sharesCost = method.buyCost(sharesPerOption(), optionIndex, quantity);
         double fee = commission.purchaseFee(sharesCost);
 
-        option.addShares(quantity);
-        account.deposit(sharesCost + fee);
+        buyer.pay(sharesCost + fee);
+        account.deposit(sharesCost);
+        marketMaker.receive(fee);
         commissionCollected += fee;
+        option.addShares(quantity);
+        holdingFor(buyer).recordPurchase(optionIndex, quantity, sharesCost, fee);
 
-        Trade trade = new Trade(option.name(), quantity, sharesCost, fee);
+        Trade trade = new Trade(buyer.name(), option.name(), quantity, sharesCost, fee);
         history.add(trade);
         return trade;
+    }
+
+    /**
+     * Sells shares back to the event. The money comes out of the event account, and no commission is
+     * charged: an on-purchase commission is taken from buyers only.
+     */
+    public Trade sell(User seller, int optionIndex, long quantity) {
+        requireTradable("Shares cannot be sold");
+        requireAbleToAct(seller);
+        requirePositive(quantity, "sell");
+
+        Holding holding = holdingFor(seller);
+        if (quantity > holding.shares(optionIndex)) {
+            throw new IllegalArgumentException(seller.name() + " holds only "
+                    + holding.shares(optionIndex) + " shares of that option, so " + quantity
+                    + " cannot be sold.");
+        }
+
+        EventOption option = options.get(optionIndex);
+        double proceeds = method.sellProceeds(sharesPerOption(), optionIndex, quantity);
+
+        account.withdraw(proceeds);
+        seller.receive(proceeds);
+        option.removeShares(quantity);
+        holding.recordSale(optionIndex, quantity, proceeds);
+
+        Trade trade = new Trade(seller.name(), option.name(), -quantity, -proceeds, 0.0);
+        history.add(trade);
+        return trade;
+    }
+
+    /** What this user holds here. Reading it does not make them a participant. */
+    public Holding holdingOf(User user) {
+        Holding holding = holdings.get(user);
+        return holding == null ? new Holding(options.size()) : holding;
+    }
+
+    /** Everyone who has ever acted on this event, in the order they first did. */
+    public List<User> participants() {
+        return List.copyOf(holdings.keySet());
     }
 
     /**
@@ -137,12 +188,22 @@ public final class Event implements Serializable {
         winningOption = options.get(winningOptionIndex);
         status = EventStatus.CLOSED;
 
-        double grossPayout = winningOption.sharesBought() * PAYOUT_PER_WINNING_SHARE;
-        double closingFee = commission.closingFee(grossPayout);
-        totalPaidOut = grossPayout - closingFee;
-        commissionCollected += closingFee;
+        for (Map.Entry<User, Holding> entry : holdings.entrySet()) {
+            long winningShares = entry.getValue().shares(winningOptionIndex);
+            if (winningShares == 0) {
+                continue;
+            }
+            double gross = winningShares * PAYOUT_PER_WINNING_SHARE;
+            double closingFee = commission.closingFee(gross);
+            double net = gross - closingFee;
 
-        account.withdraw(totalPaidOut);
+            account.withdraw(gross);
+            marketMaker.receive(closingFee);
+            entry.getKey().receive(net);
+            entry.getValue().recordPayout(net);
+            commissionCollected += closingFee;
+            totalPaidOut += net;
+        }
         account.drainInto(marketMaker.account());
     }
 
@@ -219,6 +280,29 @@ public final class Event implements Serializable {
             shares[i] = options.get(i).sharesBought();
         }
         return shares;
+    }
+
+    private Holding holdingFor(User user) {
+        return holdings.computeIfAbsent(user, ignored -> new Holding(options.size()));
+    }
+
+    private void requireAbleToAct(User user) {
+        Objects.requireNonNull(user, "user");
+        if (user.isBlocked()) {
+            throw new IllegalStateException(user.name()
+                    + " has already spent past zero and can take no further part in the market.");
+        }
+    }
+
+    private static void requirePositive(long quantity, String what) {
+        if (quantity < 1) {
+            throw new IllegalArgumentException("The number of shares to " + what
+                    + " must be at least 1, but it is " + quantity + ".");
+        }
+    }
+
+    private void requireTradable(String whatFailed) {
+        requireOpen(whatFailed);
     }
 
     private void requireOpen(String whatFailed) {

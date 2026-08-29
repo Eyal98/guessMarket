@@ -26,6 +26,7 @@ class EventTest {
     private static final double MARKET_MAKER_CASH = 10000.0;
 
     private final User marketMaker = new User("Tikva", MARKET_MAKER_CASH);
+    private final User buyer = new User("Menash", 100000);
 
     private Event eventWith(Commission commission) {
         Event event = new Event(3, "Earth Quake on Dead Sea", "Will there be an earth quake this year?",
@@ -65,7 +66,7 @@ class EventTest {
     void tradingNeedsAnOpenEvent() {
         Event event = eventWith(new Commission(0, CommissionType.ON_CLOSE));
 
-        assertThrows(IllegalStateException.class, () -> event.buy(0, 10));
+        assertThrows(IllegalStateException.class, () -> event.buy(buyer, 0, 10));
     }
 
     @Test
@@ -73,7 +74,7 @@ class EventTest {
     void onPurchaseCommissionIsAddedToThePrice() {
         Event event = openedEvent(new Commission(50, CommissionType.ON_PURCHASE));
 
-        Trade trade = event.buy(0, 100);
+        Trade trade = event.buy(buyer, 0, 100);
 
         assertEquals(PURCHASE_COST, trade.sharesCost(), TOLERANCE);
         assertEquals(PURCHASE_COST * 0.5, trade.commission(), TOLERANCE);
@@ -88,7 +89,7 @@ class EventTest {
     void onCloseCommissionIsNotChargedOnPurchase() {
         Event event = openedEvent(new Commission(50, CommissionType.ON_CLOSE));
 
-        Trade trade = event.buy(0, 100);
+        Trade trade = event.buy(buyer, 0, 100);
 
         assertEquals(PURCHASE_COST, trade.sharesCost(), TOLERANCE);
         assertEquals(0.0, trade.commission(), TOLERANCE);
@@ -100,9 +101,9 @@ class EventTest {
     void historyIsChronological() {
         Event event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
 
-        event.buy(0, 10);
-        event.buy(1, 20);
-        event.buy(0, 30);
+        event.buy(buyer, 0, 10);
+        event.buy(buyer, 1, 20);
+        event.buy(buyer, 0, 30);
 
         List<Trade> history = event.history();
         assertEquals(3, history.size());
@@ -116,7 +117,7 @@ class EventTest {
     @DisplayName("Every winning share pays 1.00 when there is no closing commission")
     void closingPaysOnePerWinningShare() {
         Event event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
-        event.buy(0, 100);
+        event.buy(buyer, 0, 100);
 
         event.close(marketMaker, 0);
 
@@ -129,7 +130,7 @@ class EventTest {
     @DisplayName("An on-close commission is taken out of the winners' payout")
     void closingCommissionReducesThePayout() {
         Event event = openedEvent(new Commission(50, CommissionType.ON_CLOSE));
-        event.buy(0, 100);
+        event.buy(buyer, 0, 100);
 
         event.close(marketMaker, 0);
 
@@ -141,7 +142,7 @@ class EventTest {
     @DisplayName("Whatever an LMSR event has left after paying the winners goes back to its market maker")
     void leftoverReturnsToTheMarketMaker() {
         Event event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
-        event.buy(0, 100);
+        event.buy(buyer, 0, 100);
 
         event.close(marketMaker, 0);
 
@@ -154,7 +155,7 @@ class EventTest {
     @DisplayName("Closing on the option nobody bought pays nothing and returns the whole pot")
     void closingOnTheEmptyOptionPaysNothing() {
         Event event = openedEvent(new Commission(20, CommissionType.ON_CLOSE));
-        event.buy(0, 100);
+        event.buy(buyer, 0, 100);
 
         event.close(marketMaker, 1);
 
@@ -167,8 +168,8 @@ class EventTest {
     @DisplayName("The event account never runs dry, however much is bought")
     void thePotAlwaysCoversThePayout() {
         Event event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
-        event.buy(0, 5000);
-        event.buy(1, 300);
+        event.buy(buyer, 0, 5000);
+        event.buy(buyer, 1, 300);
 
         event.close(marketMaker, 0);
 
