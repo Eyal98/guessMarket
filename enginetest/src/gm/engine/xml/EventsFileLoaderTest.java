@@ -5,6 +5,7 @@ import gm.engine.api.FileLoadException;
 import gm.engine.model.CommissionType;
 import gm.engine.model.Event;
 import gm.engine.model.EventStatus;
+import gm.engine.model.OrderBookEvent;
 import gm.engine.model.EventOption;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -163,9 +165,16 @@ class EventsFileLoaderTest {
     }
 
     @Test
-    @DisplayName("An order book event is explained rather than left to fail obscurely")
-    void explainsThatOrderBooksAreNotSupportedYet() {
-        assertMentions(failureFor("bad-order-book.xml"), "order book", "GM-LMSR");
+    @DisplayName("An order book event loads with the terms it was given")
+    void anOrderBookEventLoads() {
+        List<Event> events = loader.load(TestFiles.path("events-order-book.xml"));
+
+        assertEquals(1, events.size());
+        assertInstanceOf(OrderBookEvent.class, events.get(0));
+        OrderBookEvent event = (OrderBookEvent) events.get(0);
+        assertEquals(1, event.baseValue());
+        assertEquals(100, event.initialInvestment());
+        assertTrue(event.allowsMint());
     }
 
     @Test
@@ -188,7 +197,7 @@ class EventsFileLoaderTest {
         for (String fileName : List.of("bad-duplicate-ids.xml", "bad-commission-too-high.xml",
                 "bad-commission-negative.xml", "bad-commission-type.xml", "bad-three-options.xml",
                 "bad-one-option.xml", "bad-liquidity-zero.xml", "bad-liquidity-text.xml",
-                "bad-missing-description.xml", "bad-order-book.xml", "bad-malformed.xml",
+                "bad-missing-description.xml", "bad-malformed.xml",
                 "bad-wrong-root.xml", "bad-many-problems.xml")) {
             assertThrows(FileLoadException.class, () -> loader.load(TestFiles.path(fileName)), fileName);
         }

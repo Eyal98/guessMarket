@@ -10,6 +10,7 @@ import gm.engine.api.dto.OptionStateDto;
 import gm.engine.api.dto.TradeDto;
 import gm.engine.model.Commission;
 import gm.engine.model.Event;
+import gm.engine.model.LmsrEvent;
 import gm.engine.model.EventOption;
 import gm.engine.model.SystemState;
 import gm.engine.model.Trade;
@@ -108,10 +109,14 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
     }
 
     private MarketStateDto stateOf(Event event, int eventNumber) {
+        if (!(event instanceof LmsrEvent lmsr)) {
+            throw new InvalidSelectionException("\"" + event.name() + "\" is traded through an order book,"
+                    + " which is described by its own view rather than by a single value per option.");
+        }
         List<OptionStateDto> options = new ArrayList<>();
         for (int i = 0; i < event.options().size(); i++) {
             EventOption option = event.options().get(i);
-            options.add(new OptionStateDto(i + 1, option.name(), event.valueOf(i), option.sharesBought()));
+            options.add(new OptionStateDto(i + 1, option.name(), lmsr.valueOf(i), option.sharesBought()));
         }
         EventOption winner = event.winningOption();
         return new MarketStateDto(infoOf(event, eventNumber), List.copyOf(options),
@@ -120,7 +125,7 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
                 winner != null,
                 winner == null ? null : winner.name(),
                 winner == null ? 0L : winner.sharesBought(),
-                event.totalPaidOut(), Event.PAYOUT_PER_WINNING_SHARE);
+                event.totalPaidOut(), event.payoutPerWinningShare());
     }
 
     private List<TradeDto> newestFirst(List<Trade> history) {

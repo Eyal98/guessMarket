@@ -1,6 +1,5 @@
 package gm.engine.model;
 
-import gm.engine.method.LmsrMethod;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -28,15 +27,15 @@ class EventTest {
     private final User marketMaker = new User("Tikva", MARKET_MAKER_CASH);
     private final User buyer = new User("Menash", 100000);
 
-    private Event eventWith(Commission commission) {
-        Event event = new Event(3, "Earth Quake on Dead Sea", "Will there be an earth quake this year?",
-                commission, List.of("Yes", "No"), new LmsrMethod(100));
+    private LmsrEvent eventWith(Commission commission) {
+        LmsrEvent event = new LmsrEvent(3, "Earth Quake on Dead Sea", "Will there be an earth quake this year?",
+                commission, List.of("Yes", "No"), 100);
         event.assignMarketMaker(marketMaker);
         return event;
     }
 
-    private Event openedEvent(Commission commission) {
-        Event event = eventWith(commission);
+    private LmsrEvent openedEvent(Commission commission) {
+        LmsrEvent event = eventWith(commission);
         event.open(marketMaker);
         return event;
     }
@@ -44,7 +43,7 @@ class EventTest {
     @Test
     @DisplayName("Opening an event moves the subsidy from the market maker into the event account")
     void openingFundsTheEvent() {
-        Event event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
+        LmsrEvent event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
 
         assertEquals(SUBSIDY, event.account().balance(), TOLERANCE);
         assertEquals(MARKET_MAKER_CASH - SUBSIDY, marketMaker.account().balance(), TOLERANCE);
@@ -53,7 +52,7 @@ class EventTest {
     @Test
     @DisplayName("A freshly opened event has no trades and has sold no shares")
     void anOpenedEventIsEmpty() {
-        Event event = openedEvent(new Commission(10, CommissionType.ON_CLOSE));
+        LmsrEvent event = openedEvent(new Commission(10, CommissionType.ON_CLOSE));
 
         assertTrue(event.isOpen());
         assertTrue(event.history().isEmpty());
@@ -64,7 +63,7 @@ class EventTest {
     @Test
     @DisplayName("Nothing can be traded on an event that has not been opened")
     void tradingNeedsAnOpenEvent() {
-        Event event = eventWith(new Commission(0, CommissionType.ON_CLOSE));
+        LmsrEvent event = eventWith(new Commission(0, CommissionType.ON_CLOSE));
 
         assertThrows(IllegalStateException.class, () -> event.buy(buyer, 0, 10));
     }
@@ -72,7 +71,7 @@ class EventTest {
     @Test
     @DisplayName("An on-purchase commission is added on top of the price")
     void onPurchaseCommissionIsAddedToThePrice() {
-        Event event = openedEvent(new Commission(50, CommissionType.ON_PURCHASE));
+        LmsrEvent event = openedEvent(new Commission(50, CommissionType.ON_PURCHASE));
 
         Trade trade = event.buy(buyer, 0, 100);
 
@@ -87,7 +86,7 @@ class EventTest {
     @Test
     @DisplayName("An on-close commission costs the buyer nothing at purchase time")
     void onCloseCommissionIsNotChargedOnPurchase() {
-        Event event = openedEvent(new Commission(50, CommissionType.ON_CLOSE));
+        LmsrEvent event = openedEvent(new Commission(50, CommissionType.ON_CLOSE));
 
         Trade trade = event.buy(buyer, 0, 100);
 
@@ -99,7 +98,7 @@ class EventTest {
     @Test
     @DisplayName("Trade history is kept in the order the trades happened")
     void historyIsChronological() {
-        Event event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
+        LmsrEvent event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
 
         event.buy(buyer, 0, 10);
         event.buy(buyer, 1, 20);
@@ -116,7 +115,7 @@ class EventTest {
     @Test
     @DisplayName("Every winning share pays 1.00 when there is no closing commission")
     void closingPaysOnePerWinningShare() {
-        Event event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
+        LmsrEvent event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
         event.buy(buyer, 0, 100);
 
         event.close(marketMaker, 0);
@@ -129,7 +128,7 @@ class EventTest {
     @Test
     @DisplayName("An on-close commission is taken out of the winners' payout")
     void closingCommissionReducesThePayout() {
-        Event event = openedEvent(new Commission(50, CommissionType.ON_CLOSE));
+        LmsrEvent event = openedEvent(new Commission(50, CommissionType.ON_CLOSE));
         event.buy(buyer, 0, 100);
 
         event.close(marketMaker, 0);
@@ -141,7 +140,7 @@ class EventTest {
     @Test
     @DisplayName("Whatever an LMSR event has left after paying the winners goes back to its market maker")
     void leftoverReturnsToTheMarketMaker() {
-        Event event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
+        LmsrEvent event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
         event.buy(buyer, 0, 100);
 
         event.close(marketMaker, 0);
@@ -154,7 +153,7 @@ class EventTest {
     @Test
     @DisplayName("Closing on the option nobody bought pays nothing and returns the whole pot")
     void closingOnTheEmptyOptionPaysNothing() {
-        Event event = openedEvent(new Commission(20, CommissionType.ON_CLOSE));
+        LmsrEvent event = openedEvent(new Commission(20, CommissionType.ON_CLOSE));
         event.buy(buyer, 0, 100);
 
         event.close(marketMaker, 1);
@@ -167,7 +166,7 @@ class EventTest {
     @Test
     @DisplayName("The event account never runs dry, however much is bought")
     void thePotAlwaysCoversThePayout() {
-        Event event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
+        LmsrEvent event = openedEvent(new Commission(0, CommissionType.ON_CLOSE));
         event.buy(buyer, 0, 5000);
         event.buy(buyer, 1, 300);
 
@@ -183,10 +182,10 @@ class EventTest {
         Commission commission = new Commission(0, CommissionType.ON_CLOSE);
 
         assertThrows(NullPointerException.class,
-                () -> new Event(1, null, "d", commission, List.of("Yes", "No"), new LmsrMethod(100)));
+                () -> new LmsrEvent(1, null, "d", commission, List.of("Yes", "No"), 100));
         assertThrows(NullPointerException.class,
-                () -> new Event(1, "n", "d", null, List.of("Yes", "No"), new LmsrMethod(100)));
+                () -> new LmsrEvent(1, "n", "d", null, List.of("Yes", "No"), 100));
         assertThrows(IllegalArgumentException.class,
-                () -> new Event(1, "n", "d", commission, List.of("Yes"), new LmsrMethod(100)));
+                () -> new LmsrEvent(1, "n", "d", commission, List.of("Yes"), 100));
     }
 }

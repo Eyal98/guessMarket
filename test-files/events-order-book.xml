@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  A valid event of a kind this version cannot run: it trades through an order book rather than LMSR.
-  The system should say so plainly rather than fail in some obscure way.
+  An event traded through an order book rather than LMSR. Exercise 1 refused these; exercise 2 runs
+  them, so this file now proves the opposite of what it once did.
 -->
 <Guess-Market>
     <GM-events>
         <GM-event name="Order Book Event">
             <id>1</id>
-            <description>An event traded through an order book, which arrives in a later version.</description>
+            <description>An event traded through an order book, with a base value of 1 and minting allowed.</description>
             <comision type="on-close">10</comision>
             <GM-options>
                 <GM-option>Yes</GM-option>

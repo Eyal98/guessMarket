@@ -1,10 +1,10 @@
 package gm.engine.xml;
 
-import gm.engine.method.LmsrMethod;
-import gm.engine.method.TradingMethod;
 import gm.engine.model.Commission;
 import gm.engine.model.CommissionType;
 import gm.engine.model.Event;
+import gm.engine.model.LmsrEvent;
+import gm.engine.model.OrderBookEvent;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,8 +22,13 @@ final class EventNodeReader {
     private static final String NAME_ATTRIBUTE = "name";
     private static final String ID_ELEMENT = "id";
     private static final String DESCRIPTION_ELEMENT = "description";
-    /** Spelled with a single "s" in the file format. */
-    private static final String COMMISSION_ELEMENT = "comision";
+    /**
+     * The exercise 2 schema spells it in full. Exercise 1's files and its schema table spelled it
+     * with a single "s", so both are accepted: it costs nothing and keeps every published file
+     * loadable.
+     */
+    private static final String COMMISSION_ELEMENT = "commission";
+    private static final String LEGACY_COMMISSION_ELEMENT = "comision";
     private static final String COMMISSION_TYPE_ATTRIBUTE = "type";
     private static final String OPTIONS_ELEMENT = "GM-options";
     private static final String OPTION_ELEMENT = "GM-option";
@@ -31,6 +36,9 @@ final class EventNodeReader {
     private static final String LMSR_ELEMENT = "GM-LMSR";
     private static final String ORDER_BOOK_ELEMENT = "GM-order-book";
     private static final String LIQUIDITY_ELEMENT = "b";
+    private static final String INITIAL_ATTRIBUTE = "initial";
+    private static final String BASE_VALUE_ATTRIBUTE = "d";
+    private static final String ALLOW_MINT_ATTRIBUTE = "allow-mint";
 
     private static final int REQUIRED_OPTIONS = 2;
 
@@ -62,14 +70,19 @@ final class EventNodeReader {
         Optional<String> description = requiredText(DESCRIPTION_ELEMENT);
         Optional<Commission> commission = requiredCommission();
         Optional<List<String>> optionNames = requiredOptions();
-        Optional<TradingMethod> method = requiredMethod();
+        Optional<MethodSpec> method = requiredMethod();
 
         if (eventName.isEmpty() || id.isEmpty() || description.isEmpty()
                 || commission.isEmpty() || optionNames.isEmpty() || method.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(new Event(id.getAsInt(), eventName.get(), description.get(),
-                commission.get(), optionNames.get(), method.get()));
+        return Optional.of(switch (method.get()) {
+            case LmsrSpec(int liquidity) -> new LmsrEvent(id.getAsInt(), eventName.get(),
+                    description.get(), commission.get(), optionNames.get(), liquidity);
+            case OrderBookSpec(int initial, int baseValue, boolean allowMint) -> new OrderBookEvent(
+                    id.getAsInt(), eventName.get(), description.get(), commission.get(),
+                    optionNames.get(), initial, baseValue, allowMint);
+        });
     }
 
     /**
@@ -111,7 +124,8 @@ final class EventNodeReader {
     }
 
     private Optional<Commission> requiredCommission() {
-        Optional<XmlNode> commissionNode = node.child(COMMISSION_ELEMENT);
+        Optional<XmlNode> commissionNode = node.child(COMMISSION_ELEMENT)
+                .or(() -> node.child(LEGACY_COMMISSION_ELEMENT));
         if (commissionNode.isEmpty()) {
             problems.add(label + ": it has no <" + COMMISSION_ELEMENT + "> element.");
             return Optional.empty();
@@ -187,30 +201,83 @@ final class EventNodeReader {
         return Optional.of(names);
     }
 
-    private Optional<TradingMethod> requiredMethod() {
+    /** How an event is traded, as read from the file and before an event is built from it. */
+    private sealed interface MethodSpec permits LmsrSpec, OrderBookSpec {
+    }
+
+    private record LmsrSpec(int liquidity) implements MethodSpec {
+    }
+
+    private record OrderBookSpec(int initial, int baseValue, boolean allowMint) implements MethodSpec {
+    }
+
+    private Optional<MethodSpec> requiredMethod() {
         Optional<XmlNode> methodNode = node.child(METHOD_ELEMENT);
         if (methodNode.isEmpty()) {
             problems.add(label + ": it has no <" + METHOD_ELEMENT + "> element.");
             return Optional.empty();
         }
         Optional<XmlNode> lmsrNode = methodNode.get().child(LMSR_ELEMENT);
-        if (lmsrNode.isEmpty()) {
-            problems.add(unsupportedMethodProblem(methodNode.get()));
-            return Optional.empty();
+        if (lmsrNode.isPresent()) {
+            return liquidity(lmsrNode.get()).stream().<MethodSpec>mapToObj(LmsrSpec::new).findFirst();
         }
-        OptionalInt liquidity = liquidity(lmsrNode.get());
-        return liquidity.isEmpty()
-                ? Optional.empty()
-                : Optional.of(new LmsrMethod(liquidity.getAsInt()));
+        Optional<XmlNode> orderBookNode = methodNode.get().child(ORDER_BOOK_ELEMENT);
+        if (orderBookNode.isPresent()) {
+            return orderBookSpec(orderBookNode.get());
+        }
+        problems.add(label + ": its <" + METHOD_ELEMENT + "> element does not name a trading method."
+                + " It must contain either <" + LMSR_ELEMENT + "> or <" + ORDER_BOOK_ELEMENT + ">.");
+        return Optional.empty();
     }
 
-    private String unsupportedMethodProblem(XmlNode methodNode) {
-        if (methodNode.child(ORDER_BOOK_ELEMENT).isPresent()) {
-            return label + ": it trades through an order book, which this version of the system does not"
-                    + " support yet. Only <" + LMSR_ELEMENT + "> events can be loaded.";
+    private Optional<MethodSpec> orderBookSpec(XmlNode orderBookNode) {
+        OptionalInt initial = wholeNumberAttribute(orderBookNode, INITIAL_ATTRIBUTE, 0);
+        OptionalInt baseValue = wholeNumberAttribute(orderBookNode, BASE_VALUE_ATTRIBUTE, 1);
+        Optional<Boolean> allowMint = booleanAttribute(orderBookNode, ALLOW_MINT_ATTRIBUTE);
+        if (initial.isEmpty() || baseValue.isEmpty() || allowMint.isEmpty()) {
+            return Optional.empty();
         }
-        return label + ": its <" + METHOD_ELEMENT + "> element does not name a trading method."
-                + " It must contain <" + LMSR_ELEMENT + ">.";
+        return Optional.of(new OrderBookSpec(initial.getAsInt(), baseValue.getAsInt(), allowMint.get()));
+    }
+
+    private OptionalInt wholeNumberAttribute(XmlNode element, String attribute, int lowest) {
+        Optional<String> raw = element.attribute(attribute);
+        if (raw.isEmpty() || raw.get().isBlank()) {
+            problems.add(label + ": its <" + ORDER_BOOK_ELEMENT + "> element has no " + attribute
+                    + " attribute.");
+            return OptionalInt.empty();
+        }
+        int value;
+        try {
+            value = Integer.parseInt(raw.get());
+        } catch (NumberFormatException e) {
+            problems.add(label + ": its " + attribute + " is \"" + raw.get()
+                    + "\", which is not a whole number.");
+            return OptionalInt.empty();
+        }
+        if (value < lowest) {
+            problems.add(label + ": its " + attribute + " is " + value + ", but it cannot be less than "
+                    + lowest + ".");
+            return OptionalInt.empty();
+        }
+        return OptionalInt.of(value);
+    }
+
+    private Optional<Boolean> booleanAttribute(XmlNode element, String attribute) {
+        Optional<String> raw = element.attribute(attribute);
+        if (raw.isEmpty()) {
+            problems.add(label + ": its <" + ORDER_BOOK_ELEMENT + "> element has no " + attribute
+                    + " attribute. It must be true or false.");
+            return Optional.empty();
+        }
+        if ("true".equalsIgnoreCase(raw.get())) {
+            return Optional.of(Boolean.TRUE);
+        }
+        if ("false".equalsIgnoreCase(raw.get())) {
+            return Optional.of(Boolean.FALSE);
+        }
+        problems.add(label + ": its " + attribute + " is \"" + raw.get() + "\", but it must be true or false.");
+        return Optional.empty();
     }
 
     private OptionalInt liquidity(XmlNode lmsrNode) {

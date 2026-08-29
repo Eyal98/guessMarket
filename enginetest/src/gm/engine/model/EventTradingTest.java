@@ -1,6 +1,5 @@
 package gm.engine.model;
 
-import gm.engine.method.LmsrMethod;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -27,9 +26,9 @@ class EventTradingTest {
     private final User marketMaker = new User("Tikva", 10000);
     private final User buyer = new User("Menash", 1000);
 
-    private Event openedEvent(int percent, CommissionType type) {
-        Event event = new Event(1, "Mujtaba is Dead", "Is he?", new Commission(percent, type),
-                List.of("Hell Yea !", "No way !"), new LmsrMethod(100));
+    private LmsrEvent openedEvent(int percent, CommissionType type) {
+        LmsrEvent event = new LmsrEvent(1, "Mujtaba is Dead", "Is he?", new Commission(percent, type),
+                List.of("Hell Yea !", "No way !"), 100);
         event.assignMarketMaker(marketMaker);
         event.open(marketMaker);
         return event;
@@ -38,7 +37,7 @@ class EventTradingTest {
     @Test
     @DisplayName("The buyer pays, the event keeps the price and the market maker keeps the commission")
     void commissionIsTheMarketMakersIncome() {
-        Event event = openedEvent(50, CommissionType.ON_PURCHASE);
+        LmsrEvent event = openedEvent(50, CommissionType.ON_PURCHASE);
         double marketMakerAfterOpening = marketMaker.account().balance();
         double fee = COST_OF_100 * 0.5;
 
@@ -52,7 +51,7 @@ class EventTradingTest {
     @Test
     @DisplayName("A purchase is remembered against the buyer, not just the event")
     void thePurchaseLandsInTheBuyersHolding() {
-        Event event = openedEvent(50, CommissionType.ON_PURCHASE);
+        LmsrEvent event = openedEvent(50, CommissionType.ON_PURCHASE);
 
         event.buy(buyer, 0, 100);
 
@@ -66,7 +65,7 @@ class EventTradingTest {
     @Test
     @DisplayName("Somebody who has only looked at an event is not a participant in it")
     void watchingIsNotParticipating() {
-        Event event = openedEvent(0, CommissionType.ON_CLOSE);
+        LmsrEvent event = openedEvent(0, CommissionType.ON_CLOSE);
 
         assertEquals(List.of(), event.participants());
     }
@@ -74,7 +73,7 @@ class EventTradingTest {
     @Test
     @DisplayName("Selling gives the money back from the event and takes the shares away")
     void sellingReturnsMoneyFromTheEvent() {
-        Event event = openedEvent(0, CommissionType.ON_CLOSE);
+        LmsrEvent event = openedEvent(0, CommissionType.ON_CLOSE);
         event.buy(buyer, 0, 100);
 
         event.sell(buyer, 0, 100);
@@ -88,7 +87,7 @@ class EventTradingTest {
     @Test
     @DisplayName("Nobody can sell shares they never bought")
     void sellingNeedsTheShares() {
-        Event event = openedEvent(0, CommissionType.ON_CLOSE);
+        LmsrEvent event = openedEvent(0, CommissionType.ON_CLOSE);
         event.buy(buyer, 0, 10);
 
         assertThrows(IllegalArgumentException.class, () -> event.sell(buyer, 0, 11));
@@ -97,7 +96,7 @@ class EventTradingTest {
     @Test
     @DisplayName("A blocked user cannot start anything new")
     void aBlockedUserIsTurnedAway() {
-        Event event = openedEvent(0, CommissionType.ON_CLOSE);
+        LmsrEvent event = openedEvent(0, CommissionType.ON_CLOSE);
         User pauper = new User("Avrum", 5);
         event.buy(pauper, 0, 100);
 
@@ -108,7 +107,7 @@ class EventTradingTest {
     @Test
     @DisplayName("Closing pays each holder for their own shares")
     void closingPaysEachHolderTheirOwnShare() {
-        Event event = openedEvent(10, CommissionType.ON_CLOSE);
+        LmsrEvent event = openedEvent(10, CommissionType.ON_CLOSE);
         User other = new User("Avrum", 1000);
         event.buy(buyer, 0, 100);
         event.buy(other, 0, 50);
@@ -126,7 +125,7 @@ class EventTradingTest {
     @Test
     @DisplayName("The closing commission is the market maker's, not the event's")
     void theClosingCommissionGoesToTheMarketMaker() {
-        Event event = openedEvent(10, CommissionType.ON_CLOSE);
+        LmsrEvent event = openedEvent(10, CommissionType.ON_CLOSE);
         event.buy(buyer, 0, 100);
         double marketMakerBeforeClosing = marketMaker.account().balance();
         double eventHoldsBeforeClosing = event.account().balance();
@@ -144,7 +143,7 @@ class EventTradingTest {
     @Test
     @DisplayName("Holders of the losing option are paid nothing")
     void losersGetNothing() {
-        Event event = openedEvent(0, CommissionType.ON_CLOSE);
+        LmsrEvent event = openedEvent(0, CommissionType.ON_CLOSE);
         User loser = new User("Avrum", 1000);
         event.buy(buyer, 0, 100);
         event.buy(loser, 1, 40);

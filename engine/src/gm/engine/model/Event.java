@@ -1,7 +1,5 @@
 package gm.engine.model;
 
-import gm.engine.method.TradingMethod;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,21 +9,21 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * A single event people can trade on: its description, its options, the method that prices them, its
- * own account and everything that has happened to it so far.
+ * A single event people can trade on: what it is, who runs it, its own account, who holds what, and
+ * where it stands in its life.
  * <p>
- * All the money of an event flows through {@link #account()}. It is filled with the subsidy when the
- * event is created, grows with every purchase, and is emptied when the event closes: the winners are
- * paid, and whatever is left goes back to the market maker who funded it. The pot can never run dry,
- * because the LMSR cost function is always at least as large as the largest number of shares held in
- * any one option.
+ * Everything here is true of both kinds of event. How shares are priced is not: an LMSR event quotes
+ * against a formula while an order book matches people against each other, and the two have almost
+ * nothing in common beyond the money moving. That is why this class is sealed over exactly two
+ * subclasses rather than delegating to one interface that would be half meaningless to each of them.
+ * <p>
+ * All the money of an event flows through {@link #account()}. The market maker fills it on opening,
+ * trading adds to it, and closing empties it: every holder of the winning option is paid for their
+ * own shares, and whatever remains goes back to the market maker who funded it.
  */
-public final class Event implements Serializable {
+public abstract sealed class Event implements Serializable permits LmsrEvent, OrderBookEvent {
 
     private static final long serialVersionUID = 1L;
-
-    /** Every share of the winning option is worth this much when the event closes. */
-    public static final double PAYOUT_PER_WINNING_SHARE = 1.0;
 
     /** Fewer than this many outcomes would leave nothing to choose between. */
     public static final int MINIMUM_OPTIONS = 2;
@@ -37,7 +35,6 @@ public final class Event implements Serializable {
     /** Always an immutable list, which is serializable; the declared type simply cannot say so. */
     @SuppressWarnings("serial")
     private final List<EventOption> options;
-    private final TradingMethod method;
     private final Account account = new Account();
     /** Always an ArrayList, which is serializable; the declared type simply cannot say so. */
     @SuppressWarnings("serial")
@@ -52,13 +49,12 @@ public final class Event implements Serializable {
     private double commissionCollected;
     private double totalPaidOut;
 
-    public Event(int id, String name, String description, Commission commission,
-                 List<String> optionNames, TradingMethod method) {
+    protected Event(int id, String name, String description, Commission commission,
+                    List<String> optionNames) {
         this.id = id;
         this.name = Objects.requireNonNull(name, "name");
         this.description = Objects.requireNonNull(description, "description");
         this.commission = Objects.requireNonNull(commission, "commission");
-        this.method = Objects.requireNonNull(method, "method");
         Objects.requireNonNull(optionNames, "optionNames");
         if (optionNames.size() < MINIMUM_OPTIONS) {
             throw new IllegalArgumentException("An event needs at least " + MINIMUM_OPTIONS
@@ -83,11 +79,6 @@ public final class Event implements Serializable {
         return marketMaker;
     }
 
-    /** What it costs the market maker to open this event. */
-    public double openingCost() {
-        return method.initialPot(options.size());
-    }
-
     /**
      * Starts the event trading, at the market maker's expense.
      * <p>
@@ -105,63 +96,7 @@ public final class Event implements Serializable {
         marketMaker.pay(cost);
         account.deposit(cost);
         status = EventStatus.ACTIVE;
-    }
-
-    /**
-     * Buys shares of one option for a user.
-     * <p>
-     * The price of the shares goes to the event, which is what the event pays out from, and the
-     * commission goes straight into the market maker's own account, because in this version the
-     * commission is their income rather than the event's.
-     */
-    public Trade buy(User buyer, int optionIndex, long quantity) {
-        requireTradable("Shares cannot be bought");
-        requireAbleToAct(buyer);
-        requirePositive(quantity, "buy");
-
-        EventOption option = options.get(optionIndex);
-        double sharesCost = method.buyCost(sharesPerOption(), optionIndex, quantity);
-        double fee = commission.purchaseFee(sharesCost);
-
-        buyer.pay(sharesCost + fee);
-        account.deposit(sharesCost);
-        marketMaker.receive(fee);
-        commissionCollected += fee;
-        option.addShares(quantity);
-        holdingFor(buyer).recordPurchase(optionIndex, quantity, sharesCost, fee);
-
-        Trade trade = new Trade(buyer.name(), option.name(), quantity, sharesCost, fee);
-        history.add(trade);
-        return trade;
-    }
-
-    /**
-     * Sells shares back to the event. The money comes out of the event account, and no commission is
-     * charged: an on-purchase commission is taken from buyers only.
-     */
-    public Trade sell(User seller, int optionIndex, long quantity) {
-        requireTradable("Shares cannot be sold");
-        requireAbleToAct(seller);
-        requirePositive(quantity, "sell");
-
-        Holding holding = holdingFor(seller);
-        if (quantity > holding.shares(optionIndex)) {
-            throw new IllegalArgumentException(seller.name() + " holds only "
-                    + holding.shares(optionIndex) + " shares of that option, so " + quantity
-                    + " cannot be sold.");
-        }
-
-        EventOption option = options.get(optionIndex);
-        double proceeds = method.sellProceeds(sharesPerOption(), optionIndex, quantity);
-
-        account.withdraw(proceeds);
-        seller.receive(proceeds);
-        option.removeShares(quantity);
-        holding.recordSale(optionIndex, quantity, proceeds);
-
-        Trade trade = new Trade(seller.name(), option.name(), -quantity, -proceeds, 0.0);
-        history.add(trade);
-        return trade;
+        onOpened();
     }
 
     /** What this user holds here. Reading it does not make them a participant. */
@@ -193,7 +128,7 @@ public final class Event implements Serializable {
             if (winningShares == 0) {
                 continue;
             }
-            double gross = winningShares * PAYOUT_PER_WINNING_SHARE;
+            double gross = winningShares * payoutPerWinningShare();
             double closingFee = commission.closingFee(gross);
             double net = gross - closingFee;
 
@@ -207,18 +142,31 @@ public final class Event implements Serializable {
         account.drainInto(marketMaker.account());
     }
 
-    /** The current value of one option, between 0 and 1. */
-    public double valueOf(int optionIndex) {
-        return method.optionValue(sharesPerOption(), optionIndex);
-    }
+    /** What it costs this event's market maker to open it. */
+    public abstract double openingCost();
 
-    /** What buying {@code quantity} shares of an option would cost, before commission. */
-    public double quoteFor(int optionIndex, long quantity) {
-        return method.buyCost(sharesPerOption(), optionIndex, quantity);
+    /** What one share of the winning option is worth once the event closes. */
+    public abstract double payoutPerWinningShare();
+
+    /** A short description of how this event is traded, for display. */
+    public abstract String methodDescription();
+
+    /**
+     * Anything the event itself must do once it has been opened and paid for. LMSR has nothing to do;
+     * an order book hands the market maker the stock they have just bought.
+     */
+    protected void onOpened() {
+        // Nothing by default.
     }
 
     public int id() {
         return id;
+    }
+
+    /** Records a completed trade and the commission it earned the market maker. */
+    protected void recordTrade(Trade trade, double commissionEarned) {
+        history.add(trade);
+        commissionCollected += commissionEarned;
     }
 
     public String name() {
@@ -270,11 +218,7 @@ public final class Event implements Serializable {
         return totalPaidOut;
     }
 
-    public String methodDescription() {
-        return method.describe();
-    }
-
-    private long[] sharesPerOption() {
+    protected long[] sharesPerOption() {
         long[] shares = new long[options.size()];
         for (int i = 0; i < shares.length; i++) {
             shares[i] = options.get(i).sharesBought();
@@ -282,11 +226,11 @@ public final class Event implements Serializable {
         return shares;
     }
 
-    private Holding holdingFor(User user) {
+    protected Holding holdingFor(User user) {
         return holdings.computeIfAbsent(user, ignored -> new Holding(options.size()));
     }
 
-    private void requireAbleToAct(User user) {
+    protected void requireAbleToAct(User user) {
         Objects.requireNonNull(user, "user");
         if (user.isBlocked()) {
             throw new IllegalStateException(user.name()
@@ -294,18 +238,18 @@ public final class Event implements Serializable {
         }
     }
 
-    private static void requirePositive(long quantity, String what) {
+    protected static void requirePositive(long quantity, String what) {
         if (quantity < 1) {
             throw new IllegalArgumentException("The number of shares to " + what
                     + " must be at least 1, but it is " + quantity + ".");
         }
     }
 
-    private void requireTradable(String whatFailed) {
+    protected void requireTradable(String whatFailed) {
         requireOpen(whatFailed);
     }
 
-    private void requireOpen(String whatFailed) {
+    protected void requireOpen(String whatFailed) {
         if (!isOpen()) {
             throw new IllegalStateException(whatFailed + " because the event \"" + name
                     + "\" is " + status.displayName().toLowerCase(java.util.Locale.US) + ".");

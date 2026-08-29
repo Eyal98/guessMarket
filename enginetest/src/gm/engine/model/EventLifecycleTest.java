@@ -1,6 +1,5 @@
 package gm.engine.model;
 
-import gm.engine.method.LmsrMethod;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -26,14 +25,14 @@ class EventLifecycleTest {
     private final User marketMaker = new User("Tikva", 10000);
     private final User bystander = new User("Menash", 100);
 
-    private Event event() {
-        return new Event(1, "Mujtaba is Dead", "Is he?",
+    private LmsrEvent event() {
+        return new LmsrEvent(1, "Mujtaba is Dead", "Is he?",
                 new Commission(5, CommissionType.ON_PURCHASE),
-                List.of("Hell Yea !", "No way !"), new LmsrMethod(100));
+                List.of("Hell Yea !", "No way !"), 100);
     }
 
-    private Event eventOwnedByTheMarketMaker() {
-        Event event = event();
+    private LmsrEvent eventOwnedByTheMarketMaker() {
+        LmsrEvent event = event();
         event.assignMarketMaker(marketMaker);
         return event;
     }
@@ -41,7 +40,7 @@ class EventLifecycleTest {
     @Test
     @DisplayName("An event arrives from the file dormant, with nothing in its account")
     void anEventArrivesDormant() {
-        Event event = eventOwnedByTheMarketMaker();
+        LmsrEvent event = eventOwnedByTheMarketMaker();
 
         assertEquals(EventStatus.NOT_STARTED, event.status());
         assertEquals(0.0, event.account().balance(), TOLERANCE);
@@ -51,7 +50,7 @@ class EventLifecycleTest {
     @Test
     @DisplayName("An event knows which user runs it, and is told only once")
     void theMarketMakerIsAssignedOnce() {
-        Event event = eventOwnedByTheMarketMaker();
+        LmsrEvent event = eventOwnedByTheMarketMaker();
 
         assertSame(marketMaker, event.marketMaker());
         assertThrows(IllegalStateException.class, () -> event.assignMarketMaker(bystander));
@@ -60,7 +59,7 @@ class EventLifecycleTest {
     @Test
     @DisplayName("Opening it moves the subsidy out of the market maker's own pocket")
     void openingChargesTheMarketMaker() {
-        Event event = eventOwnedByTheMarketMaker();
+        LmsrEvent event = eventOwnedByTheMarketMaker();
 
         event.open(marketMaker);
 
@@ -72,7 +71,7 @@ class EventLifecycleTest {
     @Test
     @DisplayName("Nobody but the market maker may open an event")
     void onlyTheMarketMakerMayOpen() {
-        Event event = eventOwnedByTheMarketMaker();
+        LmsrEvent event = eventOwnedByTheMarketMaker();
 
         assertThrows(IllegalStateException.class, () -> event.open(bystander));
         assertEquals(EventStatus.NOT_STARTED, event.status());
@@ -82,7 +81,7 @@ class EventLifecycleTest {
     @Test
     @DisplayName("A market maker who cannot afford the subsidy cannot open the event")
     void openingNeedsTheMoneyUpFront() {
-        Event event = event();
+        LmsrEvent event = event();
         User pauper = new User("Avrum", 10);
         event.assignMarketMaker(pauper);
 
@@ -96,7 +95,7 @@ class EventLifecycleTest {
     @Test
     @DisplayName("An event cannot be opened twice")
     void openingHappensOnce() {
-        Event event = eventOwnedByTheMarketMaker();
+        LmsrEvent event = eventOwnedByTheMarketMaker();
         event.open(marketMaker);
 
         assertThrows(IllegalStateException.class, () -> event.open(marketMaker));
@@ -105,7 +104,7 @@ class EventLifecycleTest {
     @Test
     @DisplayName("An event that never opened cannot be closed")
     void closingNeedsAnOpenEvent() {
-        Event event = eventOwnedByTheMarketMaker();
+        LmsrEvent event = eventOwnedByTheMarketMaker();
 
         assertThrows(IllegalStateException.class, () -> event.close(marketMaker, 0));
     }
@@ -113,7 +112,7 @@ class EventLifecycleTest {
     @Test
     @DisplayName("Nobody but the market maker may close an event")
     void onlyTheMarketMakerMayClose() {
-        Event event = eventOwnedByTheMarketMaker();
+        LmsrEvent event = eventOwnedByTheMarketMaker();
         event.open(marketMaker);
 
         assertThrows(IllegalStateException.class, () -> event.close(bystander, 0));
@@ -123,7 +122,7 @@ class EventLifecycleTest {
     @Test
     @DisplayName("Closing decides the event for good")
     void closingIsFinal() {
-        Event event = eventOwnedByTheMarketMaker();
+        LmsrEvent event = eventOwnedByTheMarketMaker();
         event.open(marketMaker);
 
         event.close(marketMaker, 0);
