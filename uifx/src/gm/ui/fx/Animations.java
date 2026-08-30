@@ -1,6 +1,7 @@
 package gm.ui.fx;
 
 import javafx.animation.FadeTransition;
+import javafx.animation.Transition;
 import javafx.animation.ScaleTransition;
 import javafx.animation.TranslateTransition;
 import javafx.scene.Node;
@@ -46,6 +47,9 @@ public final class Animations {
     /** How much bigger a pulsing number grows before settling back. */
     private static final double PULSE_GROWTH = 1.12;
 
+    /** Where a node remembers the movement currently running on it, so a second one can stop it. */
+    private static final String MOVING = "gm.animations.moving";
+
     private boolean on;
 
     /** Whether movement is allowed at all. False until somebody asks for it. */
@@ -65,22 +69,46 @@ public final class Animations {
         if (!on || node == null) {
             return;
         }
-        switch (motion) {
+        settle(node);
+        Transition movement = switch (motion) {
             case APPEARING -> fadeUp(motion, node);
             case PULSING -> swell(motion, node);
             case REFUSING -> shake(motion, node);
-        }
+        };
+        node.getProperties().put(MOVING, movement);
+        movement.setOnFinished(ignored -> settle(node));
+        movement.play();
     }
 
-    private void fadeUp(Motion motion, Node node) {
+    /**
+     * Puts a node back exactly as it was found, stopping anything still moving it.
+     * <p>
+     * This is what makes an interrupted movement harmless. A transition runs its finished handler
+     * only when it finishes: one cut short — because the panel was rebuilt and a second movement
+     * started on the same node — never runs it, and abandons the node wherever it had got to. A
+     * panel left at a fifth of its opacity is indistinguishable from one that failed to load.
+     */
+    public void settle(Node node) {
+        if (node == null) {
+            return;
+        }
+        if (node.getProperties().remove(MOVING) instanceof Transition running) {
+            running.stop();
+        }
+        node.setOpacity(1);
+        node.setScaleX(1);
+        node.setScaleY(1);
+        node.setTranslateX(0);
+    }
+
+    private Transition fadeUp(Motion motion, Node node) {
         FadeTransition fade = new FadeTransition(motion.length(), node);
         fade.setFromValue(0);
         fade.setToValue(1);
-        fade.setOnFinished(ignored -> node.setOpacity(1));
-        fade.play();
+        return fade;
     }
 
-    private void swell(Motion motion, Node node) {
+    private Transition swell(Motion motion, Node node) {
         ScaleTransition swell = new ScaleTransition(motion.length().divide(2), node);
         swell.setFromX(1);
         swell.setFromY(1);
@@ -88,20 +116,15 @@ public final class Animations {
         swell.setToY(PULSE_GROWTH);
         swell.setCycleCount(2);
         swell.setAutoReverse(true);
-        swell.setOnFinished(ignored -> {
-            node.setScaleX(1);
-            node.setScaleY(1);
-        });
-        swell.play();
+        return swell;
     }
 
-    private void shake(Motion motion, Node node) {
+    private Transition shake(Motion motion, Node node) {
         TranslateTransition shake = new TranslateTransition(motion.length().divide(4), node);
         shake.setFromX(-SHAKE_DISTANCE);
         shake.setToX(SHAKE_DISTANCE);
         shake.setCycleCount(4);
         shake.setAutoReverse(true);
-        shake.setOnFinished(ignored -> node.setTranslateX(0));
-        shake.play();
+        return shake;
     }
 }

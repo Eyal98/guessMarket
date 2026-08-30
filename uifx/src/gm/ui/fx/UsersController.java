@@ -61,13 +61,13 @@ public final class UsersController {
     private final VBox actions = new VBox(8);
     private final VBox moneyChart = new VBox(8);
 
-    /** One line of the "events participation \ owner" table: an event and why this user is in it. */
+    /** One line of the "events participation \ owner" table: an event and how this user stands in it. */
     public record EventRole(EventInfoDto event, boolean runsIt, ParticipationDto holding) {
         String role() {
             if (runsIt) {
                 return holding == null ? "Market maker" : "Market maker, trading";
             }
-            return "Trading";
+            return holding == null ? "Not taken part yet" : "Trading";
         }
     }
 
@@ -202,7 +202,16 @@ public final class UsersController {
                 Charts.balanceChart(engine.balanceHistory(selected.number()))));
     }
 
-    /** Everything this user is involved in: what they run, what they hold, and what they could open. */
+    /**
+     * Where this user stands in every event: what they run, what they hold, and what they have not
+     * touched yet.
+     * <p>
+     * Every event is listed, not only the ones already taken part in. Taking part has to be able to
+     * begin somewhere, and this table is where an event is chosen to act on — listing only events
+     * already joined would mean nobody could ever place a first order, leaving the market makers and
+     * the existing holders as the only people able to trade at all. The role column says plainly
+     * which events this person is actually in.
+     */
     private List<EventRole> rolesOf(UserDetailDto detail) {
         List<EventRole> roles = new ArrayList<>();
         for (EventInfoDto event : engine.listEvents()) {
@@ -211,9 +220,7 @@ public final class UsersController {
                     .filter(part -> part.event().number() == event.number())
                     .findFirst()
                     .orElse(null);
-            if (runsIt || holding != null) {
-                roles.add(new EventRole(event, runsIt, holding));
-            }
+            roles.add(new EventRole(event, runsIt, holding));
         }
         return roles;
     }
@@ -339,21 +346,25 @@ public final class UsersController {
 
     private Node lmsrPanel(EventInfoDto event, UserDto user) {
         ChoiceBox<String> option = optionChoice(event);
+        option.setId("tradeOption");
         Spinner<Integer> quantity = quantitySpinner();
+        quantity.setId("tradeQuantity");
 
         Button buy = new Button("Buy");
         buy.getStyleClass().add("primary-button");
         buy.setOnAction(ignored -> attempt(() -> {
+            long wanted = quantityIn(quantity);
             engine.buyShares(event.number(), user.number(),
-                    option.getSelectionModel().getSelectedIndex() + 1, quantity.getValue());
-            main.setStatus(user.name() + " bought " + quantity.getValue() + " shares.");
+                    option.getSelectionModel().getSelectedIndex() + 1, wanted);
+            main.setStatus(user.name() + " bought " + wanted + " shares.");
         }));
 
         Button sell = new Button("Sell");
         sell.setOnAction(ignored -> attempt(() -> {
+            long offered = quantityIn(quantity);
             engine.sellShares(event.number(), user.number(),
-                    option.getSelectionModel().getSelectedIndex() + 1, quantity.getValue());
-            main.setStatus(user.name() + " sold " + quantity.getValue() + " shares.");
+                    option.getSelectionModel().getSelectedIndex() + 1, offered);
+            main.setStatus(user.name() + " sold " + offered + " shares.");
         }));
 
         HBox row = new HBox(8, new Label("Option"), option, new Label("Shares"), quantity, buy, sell);
@@ -363,11 +374,15 @@ public final class UsersController {
 
     private Node orderPanel(EventInfoDto event, UserDto user) {
         ChoiceBox<String> option = optionChoice(event);
+        option.setId("tradeOption");
         ChoiceBox<OrderSide> side = new ChoiceBox<>(
                 FXCollections.observableArrayList(OrderSide.BUY, OrderSide.SELL));
+        side.setId("tradeSide");
         side.getSelectionModel().selectFirst();
         Spinner<Integer> quantity = quantitySpinner();
+        quantity.setId("tradeQuantity");
         TextField price = new TextField("0.50");
+        price.setId("tradePrice");
         price.setPrefWidth(80);
 
         Button place = new Button("Place order");
@@ -376,7 +391,7 @@ public final class UsersController {
             double asked = parsePrice(price.getText());
             List<?> trades = engine.submitOrder(event.number(), user.number(),
                     option.getSelectionModel().getSelectedIndex() + 1,
-                    side.getValue(), quantity.getValue(), asked);
+                    side.getValue(), quantityIn(quantity), asked);
             main.setStatus(trades.isEmpty()
                     ? "The order is waiting in the book."
                     : "The order went through in " + trades.size() + " trade(s).");
@@ -390,6 +405,7 @@ public final class UsersController {
 
     private Node closePanel(EventInfoDto event, UserDto user) {
         ChoiceBox<String> option = optionChoice(event);
+        option.setId("closeOption");
         Button close = new Button("Close on this outcome");
         close.setOnAction(ignored -> attempt(() -> {
             engine.closeEvent(event.number(), user.number(),
@@ -415,6 +431,20 @@ public final class UsersController {
         spinner.setEditable(true);
         spinner.setPrefWidth(100);
         return spinner;
+    }
+
+    /**
+     * The number in the box, including one that has been typed but not entered.
+     * <p>
+     * A JavaFX spinner keeps its value and its text apart: typing over the number changes only the
+     * text, and the value stays behind until Enter is pressed or the box loses the focus. Somebody
+     * who types 100 and goes straight to Buy would otherwise buy the ten that were there before,
+     * be told they bought ten, and have no reason to suspect the box had ignored them.
+     * Incrementing by nothing is the documented way to make a spinner take what it has been given.
+     */
+    private static long quantityIn(Spinner<Integer> spinner) {
+        spinner.increment(0);
+        return spinner.getValue();
     }
 
     private double parsePrice(String text) {
