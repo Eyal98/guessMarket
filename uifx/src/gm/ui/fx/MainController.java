@@ -149,7 +149,12 @@ public final class MainController {
         return new FileChooser.ExtensionFilter("Saved markets", "*" + SAVE_EXTENSION);
     }
 
-    private void load(File file) {
+    /**
+     * Loads a chosen file. Package private rather than private so a developer tool can drive the
+     * whole loading path — the background task, the progress and the redraw — without a file
+     * chooser standing in the way. Nothing in the program calls it but {@link #onLoadFile()}.
+     */
+    void load(File file) {
         Task<LoadResultDto> loading = new Task<>() {
             @Override
             protected LoadResultDto call() throws InterruptedException {
