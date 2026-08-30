@@ -3,7 +3,9 @@ package gm.ui.fx;
 import gm.engine.api.GuessMarketEngine;
 import gm.engine.api.GuessMarketException;
 import gm.engine.api.dto.EventInfoDto;
+import gm.engine.api.dto.OptionHoldingDto;
 import gm.engine.api.dto.ParticipationDto;
+import gm.engine.api.dto.TradeDto;
 import gm.engine.api.dto.UserDetailDto;
 import gm.engine.api.dto.UserDto;
 import gm.engine.model.orderbook.OrderSide;
@@ -55,6 +57,7 @@ public final class UsersController {
     private final Label userState = new Label();
     private final TableView<EventRole> involvement = new TableView<>();
     private final ObservableList<EventRole> involvementRows = FXCollections.observableArrayList();
+    private final VBox involvementDetail = new VBox(8);
     private final VBox actions = new VBox(8);
     private final VBox moneyChart = new VBox(8);
 
@@ -92,6 +95,7 @@ public final class UsersController {
     }
 
     private void build() {
+        users.setId("usersTable");
         users.setItems(userRows);
         users.setPlaceholder(new Label("No users loaded."));
         users.getColumns().addAll(List.of(
@@ -114,6 +118,7 @@ public final class UsersController {
         HBox header = new HBox(10, userName, userState, spacer, createEvent, userBalance);
         header.setAlignment(Pos.CENTER_LEFT);
 
+        involvement.setId("involvementTable");
         involvement.setPlaceholder(new Label("This user has not taken part in anything yet."));
         involvement.getColumns().addAll(List.of(
                 EventDetailView.<EventRole>textColumn("Event", role -> role.event().name(), 190),
@@ -124,10 +129,14 @@ public final class UsersController {
         involvement.setItems(involvementRows);
         involvement.setPrefHeight(190);
         involvement.getSelectionModel().selectedItemProperty()
-                .addListener((ignored, was, now) -> showActionsFor(now));
+                .addListener((ignored, was, now) -> {
+                    showInvolvementIn(now);
+                    showActionsFor(now);
+                });
 
         VBox right = new VBox(10, header, new Separator(),
                 EventDetailView.section("Events participation and ownership"), involvement,
+                EventDetailView.section("This user's part in the selected event"), involvementDetail,
                 EventDetailView.section("Act on the selected event"), actions,
                 moneyChart);
         right.setPadding(new Insets(12));
@@ -169,6 +178,7 @@ public final class UsersController {
             userState.setText("");
             userBalance.setText("");
             involvementRows.clear();
+            involvementDetail.getChildren().clear();
             actions.getChildren().clear();
             moneyChart.getChildren().clear();
             return;
@@ -186,6 +196,7 @@ public final class UsersController {
                     .findFirst()
                     .ifPresent(involvement.getSelectionModel()::select);
         }
+        showInvolvementIn(involvement.getSelectionModel().getSelectedItem());
         showActionsFor(involvement.getSelectionModel().getSelectedItem());
         moneyChart.getChildren().setAll(Charts.titled("How " + detail.name() + "'s money has moved",
                 Charts.balanceChart(engine.balanceHistory(selected.number()))));
@@ -215,6 +226,73 @@ public final class UsersController {
                 .map(option -> option.optionName() + " " + Format.shares(option.shares()))
                 .reduce((a, b) -> a + ", " + b)
                 .orElse("—");
+    }
+
+    /**
+     * What this user's part in the chosen event actually amounts to.
+     * <p>
+     * The two kinds of event are asked different questions, because different things are worth
+     * knowing about each. On an LMSR event what matters is the run of purchases and sales this
+     * person made; on an order book it is what they are left holding and what they paid for it.
+     * Both are asked what the commission has cost them, and once an event has been decided both are
+     * told which option won and whether they came out ahead.
+     */
+    private void showInvolvementIn(EventRole role) {
+        involvementDetail.getChildren().clear();
+        if (role == null) {
+            involvementDetail.getChildren().add(new Label("Choose one of the events above."));
+            return;
+        }
+        ParticipationDto part = role.holding();
+        if (part == null) {
+            involvementDetail.getChildren().add(new Label(role.runsIt()
+                    ? "This user runs the event but has not traded in it, so they hold nothing here."
+                    : "This user has not taken part in this event."));
+            return;
+        }
+        EventInfoDto event = role.event();
+        if ("Order book".equals(event.methodKind())) {
+            involvementDetail.getChildren().addAll(holdingsTable(part), moneySummary(part, event));
+            return;
+        }
+        involvementDetail.getChildren().addAll(
+                new Label("Everything this user has bought and sold here, newest first."),
+                EventDetailView.tradeTable(part.trades()),
+                moneySummary(part, event));
+        if (event.winningOptionName() != null) {
+            involvementDetail.getChildren().add(holdingsTable(part));
+        }
+    }
+
+    /** What is held in each option, and what was paid for it. */
+    private TableView<OptionHoldingDto> holdingsTable(ParticipationDto part) {
+        TableView<OptionHoldingDto> table = new TableView<>();
+        table.setPlaceholder(new Label("Nothing is held here."));
+        table.getColumns().addAll(List.of(
+                EventDetailView.<OptionHoldingDto>textColumn("Option", OptionHoldingDto::optionName, 180),
+                EventDetailView.<OptionHoldingDto>textColumn("Shares held",
+                        option -> Format.shares(option.shares()), 110),
+                EventDetailView.<OptionHoldingDto>textColumn("Paid",
+                        option -> Format.money(option.paidFor()), 110),
+                EventDetailView.<OptionHoldingDto>textColumn("Worth now",
+                        option -> Format.moneyOrNothing(option.currentValue()), 110)));
+        table.getItems().setAll(part.options());
+        table.setPrefHeight(110);
+        return table;
+    }
+
+    /**
+     * The money side of taking part. Profit and loss only appears once the event has been decided,
+     * since until then there is no answer to give and a nought would read as one.
+     */
+    private Node moneySummary(ParticipationDto part, EventInfoDto event) {
+        if (event.winningOptionName() == null) {
+            return EventDetailView.labelled("Commission paid", Format.money(part.commissionPaid()));
+        }
+        return EventDetailView.labelled(
+                "Commission paid", Format.money(part.commissionPaid()),
+                "Winning option", event.winningOptionName(),
+                "Profit or loss", Format.money(part.netResult()));
     }
 
     private void showActionsFor(EventRole role) {

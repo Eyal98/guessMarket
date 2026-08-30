@@ -26,9 +26,12 @@ import java.util.List;
  * @param tradingMethod     a short description of the pricing method, for example "LMSR (b=100)"
  * @param methodKind        which market this is in one word, for filtering: LMSR or Order book
  * @param marketMakerName   the user who runs this event
+ * @param accountBalance    what the event's own account holds, which the overview list shows beside it
+ * @param winningOptionName which option the event was decided on, or null while it is still undecided
  */
 public record EventInfoDto(int number, int id, String name, String description, int commissionPercent,
                            String commissionType, String commissionTiming, List<String> optionNames,
                            String status, String tradingMethod, String methodKind,
-                           String marketMakerName) implements Serializable {
+                           String marketMakerName, double accountBalance,
+                           String winningOptionName) implements Serializable {
 }

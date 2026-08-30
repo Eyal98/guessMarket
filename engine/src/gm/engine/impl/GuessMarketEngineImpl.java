@@ -44,6 +44,7 @@ import gm.engine.xml.EventsFileLoader;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.function.Predicate;
 
 /**
@@ -315,7 +316,7 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
         List<OptionHoldingDto> options = new ArrayList<>();
         for (int i = 0; i < event.options().size(); i++) {
             options.add(new OptionHoldingDto(i + 1, event.options().get(i).name(),
-                    holding.shares(i), holding.paidFor(i)));
+                    holding.shares(i), holding.paidFor(i), worthOf(event, i, holding.shares(i))));
         }
         List<Trade> theirs = event.history().stream()
                 .filter(trade -> trade.userName().equals(user.name()))
@@ -344,9 +345,25 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
         List<OptionHoldingDto> options = new ArrayList<>();
         for (int i = 0; i < event.options().size(); i++) {
             options.add(new OptionHoldingDto(i + 1, event.options().get(i).name(),
-                    holding.shares(i), holding.paidFor(i)));
+                    holding.shares(i), holding.paidFor(i), worthOf(event, i, holding.shares(i))));
         }
         return new ParticipantDto(user.name(), List.copyOf(options), user.isBlocked());
+    }
+
+    /**
+     * What a holding is worth at the market's present reckoning: the formula's value for an LMSR
+     * event, and the last price two people actually agreed on for an order book. An option nobody
+     * has traded has no price at all, and the answer is then nothing rather than nought.
+     */
+    private Double worthOf(Event event, int optionIndex, long shares) {
+        if (event instanceof LmsrEvent lmsr) {
+            return shares * lmsr.valueOf(optionIndex);
+        }
+        if (event instanceof OrderBookEvent book) {
+            OptionalDouble last = book.bookFor(optionIndex).lastTradedPrice();
+            return last.isPresent() ? shares * last.getAsDouble() : null;
+        }
+        return null;
     }
 
     private static List<OrderDto> asDtos(List<Order> orders) {
@@ -428,7 +445,9 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
                 commission.percent(), commission.type().fileValue(), commission.type().displayName(),
                 event.options().stream().map(EventOption::name).toList(),
                 event.status().displayName(), event.methodDescription(), event.methodKind(),
-                event.marketMaker() == null ? null : event.marketMaker().name());
+                event.marketMaker() == null ? null : event.marketMaker().name(),
+                event.account().balance(),
+                event.winningOption() == null ? null : event.winningOption().name());
     }
 
     private MarketStateDto stateOf(Event event, int eventNumber) {

@@ -78,16 +78,20 @@ public final class EventsController {
     }
 
     private void build() {
+        table.setId("eventsTable");
         table.setItems(shown);
         table.setPlaceholder(new Label("No events to show."));
         table.getColumns().addAll(List.of(
-                column("#", event -> String.valueOf(event.number()), 40),
-                column("Name", EventInfoDto::name, 200),
-                column("Status", EventInfoDto::status, 90),
-                column("Type", EventInfoDto::methodKind, 90),
+                column("#", event -> String.valueOf(event.number()), 34),
+                column("Name", EventInfoDto::name, 160),
+                column("Status", EventInfoDto::status, 78),
+                column("Type", EventInfoDto::methodKind, 82),
                 column("Commission", event -> Format.percent(event.commissionPercent())
-                        + " " + event.commissionType(), 130),
-                column("Market maker", EventInfoDto::marketMakerName, 110)));
+                        + " " + event.commissionType(), 112),
+                // The event's own account is one of the columns the exercise asks for by name, so it
+                // comes before the market maker, which is an addition of ours and may scroll instead.
+                column("Account", event -> Format.money(event.accountBalance()), 82),
+                column("Market maker", EventInfoDto::marketMakerName, 100)));
         table.getSelectionModel().selectedItemProperty().addListener((ignored, was, now) -> showSelected());
         VBox.setVgrow(table, Priority.ALWAYS);
 

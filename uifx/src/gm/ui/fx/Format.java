@@ -29,8 +29,11 @@ public final class Format {
         return String.format(Locale.US, "%.2f", shown);
     }
 
-    /** A price the market may not be able to give, shown as a dash when it cannot. */
-    public static String price(Double amount) {
+    /**
+     * An amount the market may not be able to give, shown as a dash when it cannot. Serves both a
+     * price the book cannot quote and the worth of a holding in an option nobody has traded.
+     */
+    public static String moneyOrNothing(Double amount) {
         return amount == null ? NOTHING : money(amount);
     }
 

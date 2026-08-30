@@ -1,5 +1,7 @@
 /* The plain look, and the one the program starts in. Navy on a light grey desk. */
-.root { -fx-font-family: "Segoe UI", "Dialog", sans-serif; }
+.root { -fx-font-family: "Segoe UI", "Dialog", sans-serif;
+    /* Every size in guess-market.css is an em measured against this one. */
+    -fx-font-size: 12px; }
 
 .root-pane { -fx-background-color: #f5f6f8; }
 .header { -fx-background-color: #1f3864; }

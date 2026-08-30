@@ -1,6 +1,8 @@
 /* Ink on old paper, set in a serif face. Same five variables, warm instead of cold. */
 .root {
     -fx-font-family: "Georgia", "Times New Roman", serif;
+    /* Every size in guess-market.css is an em measured against this one. */
+    -fx-font-size: 13.5px;
     -fx-base: #ece0c6;
     -fx-background: #faf3e2;
     -fx-control-inner-background: #fffaf0;

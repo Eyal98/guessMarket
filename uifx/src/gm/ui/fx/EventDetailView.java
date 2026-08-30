@@ -135,6 +135,8 @@ public final class EventDetailView {
                     who -> Format.shares(who.options().get(optionIndex).shares()), 110));
             participants.getColumns().add(textColumn(name + " paid",
                     who -> Format.money(who.options().get(optionIndex).paidFor()), 110));
+            participants.getColumns().add(textColumn(name + " worth",
+                    who -> Format.moneyOrNothing(who.options().get(optionIndex).currentValue()), 110));
         }
         participants.getItems().setAll(state.participants());
         participants.setPrefHeight(180);
@@ -154,11 +156,11 @@ public final class EventDetailView {
         name.getStyleClass().add("option-title");
 
         GridPane stats = labelled(
-                "Last", Format.price(option.lastPrice()),
-                "Bid", Format.price(option.bestBid()),
-                "Ask", Format.price(option.bestAsk()),
-                "Mid", Format.price(option.midPrice()),
-                "Spread", Format.price(option.spread()),
+                "Last", Format.moneyOrNothing(option.lastPrice()),
+                "Bid", Format.moneyOrNothing(option.bestBid()),
+                "Ask", Format.moneyOrNothing(option.bestAsk()),
+                "Mid", Format.moneyOrNothing(option.midPrice()),
+                "Spread", Format.moneyOrNothing(option.spread()),
                 "Shares in issue", Format.shares(option.sharesInIssue()));
 
         return new VBox(6, name, stats,
@@ -178,7 +180,7 @@ public final class EventDetailView {
         return table;
     }
 
-    private TableView<TradeDto> tradeTable(List<TradeDto> trades) {
+    static TableView<TradeDto> tradeTable(List<TradeDto> trades) {
         TableView<TradeDto> table = new TableView<>();
         table.setPlaceholder(new Label("Nothing has been traded here yet."));
         table.getColumns().addAll(List.of(

@@ -5,6 +5,8 @@
 */
 .root {
     -fx-font-family: "Consolas", "Menlo", monospace;
+    /* Every size in guess-market.css is an em measured against this one. */
+    -fx-font-size: 12.5px;
     -fx-base: #2b2f3a;
     -fx-background: #22252e;
     -fx-control-inner-background: #2b2f3a;

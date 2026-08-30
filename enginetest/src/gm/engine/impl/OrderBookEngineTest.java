@@ -45,6 +45,24 @@ class OrderBookEngineTest {
     }
 
     @Test
+    @DisplayName("A participant's holding is worth what the market last paid for it")
+    void aHoldingIsWorthWhatTheMarketLastPaid() {
+        openMarket();
+        engine.submitOrder(WORLD_CUP, AVRUM, ARGENTINA, OrderSide.SELL, 20, 0.60);
+
+        ParticipantDto avrumBefore = engine.orderBookState(WORLD_CUP).participants().get(0);
+        assertNull(avrumBefore.options().get(0).currentValue(),
+                "nothing has changed hands, so there is no price to value a holding at");
+
+        engine.submitOrder(WORLD_CUP, TIKVA, ARGENTINA, OrderSide.BUY, 20, 0.60);
+
+        ParticipantDto tikva = engine.orderBookState(WORLD_CUP).participants().stream()
+                .filter(who -> who.userName().equals("Tikva")).findFirst().orElseThrow();
+        assertEquals(12.0, tikva.options().get(0).currentValue(), TOLERANCE,
+                "twenty shares last traded at 0.60 are worth twelve, which is not what she paid in fees");
+    }
+
+    @Test
     @DisplayName("A freshly opened book has the market maker's stock but no orders and no prices")
     void aFreshBookQuotesNothing() {
         OrderBookStateDto state = openMarket().orderBookState(WORLD_CUP);

@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -38,6 +39,33 @@ class UserAwareEngineTest {
     private GuessMarketEngine loaded() {
         engine.loadEventsFile(TestFiles.path("ex2/small.xml"));
         return engine;
+    }
+
+    @Test
+    @DisplayName("The list of events carries each event's own account, which the overview must show")
+    void theListCarriesTheEventsOwnAccount() {
+        loaded();
+
+        assertEquals(0.0, engine.listEvents().get(MUJTABA - 1).accountBalance(), TOLERANCE,
+                "nothing has been paid in yet, so the contract holds nothing");
+
+        engine.openEvent(MUJTABA, TIKVA);
+
+        assertEquals(69.3147, engine.listEvents().get(MUJTABA - 1).accountBalance(), 0.001,
+                "the subsidy Tikva paid in is the event's money now, and the list has to say so");
+    }
+
+    @Test
+    @DisplayName("An event says which option won it, and says nothing while it is still undecided")
+    void anEventSaysWhichOptionWon() {
+        loaded().openEvent(MUJTABA, TIKVA);
+
+        assertNull(engine.listEvents().get(MUJTABA - 1).winningOptionName(),
+                "nothing has been decided, and naming a winner early would be a lie");
+
+        engine.closeEvent(MUJTABA, TIKVA, 1);
+
+        assertEquals("Hell Yea !", engine.listEvents().get(MUJTABA - 1).winningOptionName());
     }
 
     @Test

@@ -1,14 +1,18 @@
 /*
-  Structure only: spacing, weight, size and alignment — the rules that make the layout work and are
-  the same whichever look is chosen. Every colour and typeface lives in a skin file next to this one,
-  so adding a look means writing one short file rather than copying this one and editing it.
+  Structure only: spacing, weight, alignment, and the *proportions* of the lettering. Every colour,
+  typeface and absolute size lives in a skin file next to this one.
+
+  Sizes here are given in em rather than pixels, so they are relative to the base size the chosen
+  skin sets on .root. That is what lets a skin change the size of every label on the screen - which
+  the bonus asks for - without this file having to know anything about which skin is on, and without
+  a skin having to restate the proportion between a title and the text under it.
 */
-.app-title { -fx-font-size: 20px; -fx-font-weight: bold; -fx-alignment: center; }
-.file-path { -fx-font-size: 12px; }
-.status-bar { -fx-padding: 6 12 6 12; -fx-font-size: 12px; }
+.app-title { -fx-font-size: 1.7em; -fx-font-weight: bold; -fx-alignment: center; }
+.file-path { -fx-font-size: 1em; }
+.status-bar { -fx-padding: 6 12 6 12; -fx-font-size: 1em; }
 .primary-button { -fx-font-weight: bold; }
-.detail-title { -fx-font-size: 17px; -fx-font-weight: bold; }
+.detail-title { -fx-font-size: 1.42em; -fx-font-weight: bold; }
 .section-title { -fx-font-weight: bold; -fx-padding: 6 0 2 0; }
-.option-title { -fx-font-weight: bold; -fx-font-size: 14px; }
-.balance { -fx-font-size: 15px; -fx-font-weight: bold; }
-.filter-caption { -fx-font-size: 12px; }
+.option-title { -fx-font-weight: bold; -fx-font-size: 1.17em; }
+.balance { -fx-font-size: 1.25em; -fx-font-weight: bold; }
+.filter-caption { -fx-font-size: 1em; }
