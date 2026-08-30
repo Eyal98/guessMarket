@@ -63,6 +63,31 @@ public final class MainController {
         usersTab.setContent(users.view());
         offerTheSkins();
         offerTheAnimations();
+        slideBetweenTabs();
+    }
+
+    /**
+     * Slides the arriving tab in from the side the reader moved towards.
+     * <p>
+     * Moving right brings the new panel in from the right and moving back brings it from the left,
+     * so the movement agrees with the direction of travel.
+     * <p>
+     * It listens to the selected <em>item</em>, not the selected index. The two are not updated
+     * together: when the index listener runs, getSelectedItem() still answers with the tab being
+     * left behind, so watching the index animates the panel on its way out instead of the one
+     * arriving - which looks like nothing happening at all, because the departing panel is taken
+     * off the screen regardless.
+     */
+    private void slideBetweenTabs() {
+        tabs.getSelectionModel().selectedItemProperty().addListener((ignored, was, arriving) -> {
+            if (arriving == null || arriving.getContent() == null) {
+                return;
+            }
+            boolean movingRight = tabs.getTabs().indexOf(arriving) > tabs.getTabs().indexOf(was);
+            // Genuinely a turn later, not onScreenThread: that runs straight away when it is already
+            // on the screen thread, which is before the arriving panel has been put into the scene.
+            Platform.runLater(() -> animations.slideIn(arriving.getContent(), movingRight));
+        });
     }
 
     /** Wires the movement switch. It starts clear, so the screen is still until somebody asks. */

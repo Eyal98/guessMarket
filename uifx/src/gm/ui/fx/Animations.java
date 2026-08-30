@@ -28,7 +28,9 @@ public final class Animations {
         /** A number that has just changed swells and settles, so money moving is noticed. */
         PULSING(Duration.millis(320)),
         /** A panel whose action was refused shakes its head. */
-        REFUSING(Duration.millis(280));
+        REFUSING(Duration.millis(280)),
+        /** A tab arriving slides in from the side the reader moved towards. */
+        SLIDING(Duration.millis(280));
 
         private final Duration length;
 
@@ -40,6 +42,37 @@ public final class Animations {
         public Duration length() {
             return length;
         }
+    }
+
+    /**
+     * Slides a panel in from one side, as though the reader had moved along to it.
+     * <p>
+     * The direction carries meaning: moving to the tab on the right brings the new panel in from the
+     * right, and moving back brings it from the left, so the movement agrees with the direction of
+     * travel instead of contradicting it.
+     *
+     * @param fromTheRight which side the panel comes from
+     */
+    public void slideIn(Node node, boolean fromTheRight) {
+        if (!on || node == null) {
+            return;
+        }
+        settle(node);
+        // A tab's panel has no width of its own until it has been laid out, and the switch is what
+        // puts it there - so on the first showing the window's width is what it will become.
+        double distance = node.getLayoutBounds().getWidth();
+        if (distance <= 0) {
+            distance = node.getScene() == null ? 0 : node.getScene().getWidth();
+        }
+        if (distance <= 0) {
+            return;
+        }
+        TranslateTransition slide = new TranslateTransition(Motion.SLIDING.length(), node);
+        slide.setFromX(fromTheRight ? distance : -distance);
+        slide.setToX(0);
+        node.getProperties().put(MOVING, slide);
+        slide.setOnFinished(ignored -> settle(node));
+        slide.play();
     }
 
     /** How far the shake travels either side of where the panel really sits. */
@@ -74,6 +107,8 @@ public final class Animations {
             case APPEARING -> fadeUp(motion, node);
             case PULSING -> swell(motion, node);
             case REFUSING -> shake(motion, node);
+            // Sliding needs to know which way, so it has its own way in: slideIn.
+            case SLIDING -> throw new IllegalArgumentException("Use slideIn to say which side.");
         };
         node.getProperties().put(MOVING, movement);
         movement.setOnFinished(ignored -> settle(node));
