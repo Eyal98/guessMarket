@@ -467,9 +467,9 @@ public final class UsersController {
     /**
      * Carries an action out, tells the user if it could not be done, and redraws either way.
      * <p>
-     * This is the one place every action passes through, which makes it the right place to say so
-     * without words: money that has just moved swells and settles, and a panel whose action was
-     * refused shakes its head. Both do nothing at all unless movement has been switched on.
+     * This is the one place every action passes through, which makes it the right place for money
+     * that has just moved to swell and settle. A refusal says so in words instead, in a dialogue the
+     * user has to dismiss, which is a plainer answer than a panel twitching behind it.
      */
     private void attempt(Runnable action) {
         boolean worked = true;
@@ -480,8 +480,9 @@ public final class UsersController {
             main.reportFailure(e);
         }
         main.refreshEverything();
-        animations.play(worked ? Animations.Motion.PULSING : Animations.Motion.REFUSING,
-                worked ? userBalance : actions);
+        if (worked) {
+            animations.play(Animations.Motion.PULSING, userBalance);
+        }
     }
 
     private static TableColumn<UserDto, String> column(String title, Function<UserDto, String> value,

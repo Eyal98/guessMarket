@@ -1,8 +1,8 @@
 package gm.ui.fx;
 
 import javafx.animation.FadeTransition;
-import javafx.animation.Transition;
 import javafx.animation.ScaleTransition;
+import javafx.animation.Transition;
 import javafx.animation.TranslateTransition;
 import javafx.scene.Node;
 import javafx.util.Duration;
@@ -27,8 +27,6 @@ public final class Animations {
         APPEARING(Duration.millis(260)),
         /** A number that has just changed swells and settles, so money moving is noticed. */
         PULSING(Duration.millis(320)),
-        /** A panel whose action was refused shakes its head. */
-        REFUSING(Duration.millis(280)),
         /** A tab arriving slides in from the side the reader moved towards. */
         SLIDING(Duration.millis(280));
 
@@ -75,8 +73,6 @@ public final class Animations {
         slide.play();
     }
 
-    /** How far the shake travels either side of where the panel really sits. */
-    private static final double SHAKE_DISTANCE = 5;
     /** How much bigger a pulsing number grows before settling back. */
     private static final double PULSE_GROWTH = 1.12;
 
@@ -106,7 +102,6 @@ public final class Animations {
         Transition movement = switch (motion) {
             case APPEARING -> fadeUp(motion, node);
             case PULSING -> swell(motion, node);
-            case REFUSING -> shake(motion, node);
             // Sliding needs to know which way, so it has its own way in: slideIn.
             case SLIDING -> throw new IllegalArgumentException("Use slideIn to say which side.");
         };
@@ -152,14 +147,5 @@ public final class Animations {
         swell.setCycleCount(2);
         swell.setAutoReverse(true);
         return swell;
-    }
-
-    private Transition shake(Motion motion, Node node) {
-        TranslateTransition shake = new TranslateTransition(motion.length().divide(4), node);
-        shake.setFromX(-SHAKE_DISTANCE);
-        shake.setToX(SHAKE_DISTANCE);
-        shake.setCycleCount(4);
-        shake.setAutoReverse(true);
-        return shake;
     }
 }
