@@ -137,6 +137,7 @@ public final class MainController {
             loadedPathLabel.setText(chosen.getAbsolutePath());
             statusLabel.setText("Restored from " + chosen.getAbsolutePath() + ".");
             refreshEverything();
+            animations.play(Animations.Motion.APPEARING, tabs);
         } catch (GuessMarketException e) {
             // A failed restore leaves the engine holding whatever it had, so the screen is left
             // showing that rather than being emptied.
@@ -177,6 +178,8 @@ public final class MainController {
                     + engine.listUsers().size() + " users loaded. Opening every event would cost "
                     + Format.money(result.costOfOpeningEverything()) + ".");
             refreshEverything();
+            // The moment a whole new market arrives is the one most worth marking.
+            animations.play(Animations.Motion.APPEARING, tabs);
         });
         loading.setOnFailed(ignored -> {
             showBusy(false);

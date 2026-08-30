@@ -57,6 +57,8 @@ public final class UsersController {
     private final Label userState = new Label();
     private final TableView<EventRole> involvement = new TableView<>();
     private final ObservableList<EventRole> involvementRows = FXCollections.observableArrayList();
+    /** The whole right hand side, kept so a change of user can be seen to happen. */
+    private final VBox whoIsSelected = new VBox(10);
     private final VBox involvementDetail = new VBox(8);
     private final VBox actions = new VBox(8);
     private final VBox moneyChart = new VBox(8);
@@ -102,8 +104,12 @@ public final class UsersController {
                 column("#", user -> String.valueOf(user.number()), 36),
                 column("Name", UserDto::name, 110),
                 column("Balance", user -> Format.money(user.balance()), 90)));
-        users.getSelectionModel().selectedItemProperty()
-                .addListener((ignored, was, now) -> showSelectedUser());
+        users.getSelectionModel().selectedItemProperty().addListener((ignored, was, now) -> {
+            showSelectedUser();
+            // Only on a change of person, not on every redraw: a panel that flashed after each
+            // trade would be a nuisance rather than a signal.
+            animations.play(Animations.Motion.APPEARING, whoIsSelected);
+        });
         VBox.setVgrow(users, Priority.ALWAYS);
         VBox left = new VBox(8, EventDetailView.section("Users"), users);
         left.setPadding(new Insets(10));
@@ -132,16 +138,18 @@ public final class UsersController {
                 .addListener((ignored, was, now) -> {
                     showInvolvementIn(now);
                     showActionsFor(now);
+                    animations.play(Animations.Motion.APPEARING, involvementDetail);
+                    animations.play(Animations.Motion.APPEARING, actions);
                 });
 
-        VBox right = new VBox(10, header, new Separator(),
+        whoIsSelected.getChildren().setAll(header, new Separator(),
                 EventDetailView.section("Events participation and ownership"), involvement,
                 EventDetailView.section("This user's part in the selected event"), involvementDetail,
                 EventDetailView.section("Act on the selected event"), actions,
                 moneyChart);
-        right.setPadding(new Insets(12));
+        whoIsSelected.setPadding(new Insets(12));
 
-        ScrollPane scrollingRight = new ScrollPane(right);
+        ScrollPane scrollingRight = new ScrollPane(whoIsSelected);
         scrollingRight.setId("userDetail");
         scrollingRight.setFitToWidth(true);
         scrollingRight.setPannable(true);
