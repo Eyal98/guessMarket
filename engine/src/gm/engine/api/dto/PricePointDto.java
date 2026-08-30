@@ -1,5 +1,7 @@
 package gm.engine.api.dto;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -12,6 +14,6 @@ import java.util.List;
 public record PricePointDto(int step, List<Double> pricePerOption) {
 
     public PricePointDto {
-        pricePerOption = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(pricePerOption));
+        pricePerOption = Collections.unmodifiableList(new ArrayList<>(pricePerOption));
     }
 }

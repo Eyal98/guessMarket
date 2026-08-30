@@ -2,6 +2,7 @@ package gm.engine.model;
 
 import gm.engine.method.LmsrMethod;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -69,7 +70,7 @@ public final class LmsrEvent extends Event {
     /** An LMSR event can always price every option, because the formula answers whatever it is asked. */
     @Override
     protected List<Double> currentPrices() {
-        List<Double> prices = new java.util.ArrayList<>(options().size());
+        List<Double> prices = new ArrayList<>(options().size());
         for (int optionIndex = 0; optionIndex < options().size(); optionIndex++) {
             prices.add(valueOf(optionIndex));
         }

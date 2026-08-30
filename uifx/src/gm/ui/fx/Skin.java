@@ -2,6 +2,8 @@ package gm.ui.fx;
 
 import javafx.scene.Scene;
 
+import java.util.Locale;
+
 /**
  * One of the looks the program can wear.
  * <p>
@@ -34,7 +36,7 @@ public enum Skin {
 
     /** The file holding this skin's colours and lettering. */
     public String stylesheet() {
-        return "skin-" + name().toLowerCase(java.util.Locale.ROOT) + ".css";
+        return "skin-" + name().toLowerCase(Locale.ROOT) + ".css";
     }
 
     /** Dresses a screen in this skin, replacing whatever it was wearing. */

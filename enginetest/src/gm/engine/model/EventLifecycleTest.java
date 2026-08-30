@@ -38,6 +38,34 @@ class EventLifecycleTest {
     }
 
     @Test
+    @DisplayName("A market maker who has spent past zero can no longer open their event")
+    void aBlockedMarketMakerCannotOpen() {
+        // An order book stocked with nothing costs nothing to open, so the affordability check
+        // cannot be what refuses this. Only the blocking rule can.
+        OrderBookEvent free = new OrderBookEvent(2, "Free to open", "Costs nothing",
+                new Commission(0, CommissionType.ON_PURCHASE), List.of("Yes", "No"), 0, 1, false);
+        free.assignMarketMaker(bystander);
+        bystander.pay(500);
+
+        assertTrue(bystander.isBlocked(), "the setup has to leave them blocked for this to mean anything");
+        assertEquals(0.0, free.openingCost(), TOLERANCE, "and opening it must genuinely be free");
+        assertThrows(IllegalStateException.class, () -> free.open(bystander),
+                "blocking means taking no further part, and opening an event is taking part");
+    }
+
+    @Test
+    @DisplayName("A market maker who has spent past zero can no longer close their event")
+    void aBlockedMarketMakerCannotClose() {
+        LmsrEvent event = eventOwnedByTheMarketMaker();
+        event.open(marketMaker);
+        marketMaker.pay(100_000);
+
+        assertTrue(marketMaker.isBlocked());
+        assertThrows(IllegalStateException.class, () -> event.close(marketMaker, 0),
+                "deciding an event is the biggest act of all, so it cannot be the one blocking allows");
+    }
+
+    @Test
     @DisplayName("An event arrives from the file dormant, with nothing in its account")
     void anEventArrivesDormant() {
         LmsrEvent event = eventOwnedByTheMarketMaker();

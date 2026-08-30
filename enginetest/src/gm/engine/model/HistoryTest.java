@@ -120,6 +120,39 @@ class HistoryTest {
     }
 
     @Test
+    @DisplayName("Money returning to the market maker at close lands on their chart")
+    void closingIsRecordedOnTheMarketMakersChart() {
+        LmsrEvent event = lmsr();
+        event.open(marketMaker);
+        event.buy(trader, 0, 40);
+
+        event.close(marketMaker, 0);
+
+        double lastDrawn = marketMaker.balanceHistory()
+                .get(marketMaker.balanceHistory().size() - 1).balance();
+        assertEquals(marketMaker.account().balance(), lastDrawn, TOLERANCE,
+                "the chart's last point has to agree with the balance shown beside it");
+    }
+
+    @Test
+    @DisplayName("Closing records where the prices finally landed")
+    void closingRecordsTheFinalPrices() {
+        LmsrEvent event = lmsr();
+        event.open(marketMaker);
+        event.buy(trader, 0, 40);
+        int beforeClosing = event.priceHistory().size();
+
+        event.close(marketMaker, 0);
+
+        assertEquals(beforeClosing + 1, event.priceHistory().size(),
+                "a chart that stops at the last trade never shows the event being decided");
+        Event.PriceSample settled = event.priceHistory().get(event.priceHistory().size() - 1);
+        assertEquals(1.0, settled.pricePerOption().get(0), TOLERANCE,
+                "once decided, a winning share is worth its full payout and no longer a guess");
+        assertEquals(0.0, settled.pricePerOption().get(1), TOLERANCE);
+    }
+
+    @Test
     @DisplayName("The steps count up, so a chart can put them in order")
     void theStepsCountUp() {
         LmsrEvent event = lmsr();

@@ -66,6 +66,8 @@ final class CreateEventDialog {
             new CheckBox("Two opposing buyers may create new shares between them");
     private final VBox lmsrFields = new VBox(8);
     private final VBox bookFields = new VBox(8);
+    /** Counts up for the whole life of the form, so a removed row never frees its name for reuse. */
+    private int outcomesEverAdded;
 
     private CreateEventDialog(GuessMarketEngine engine, UserDto creator, MainController main) {
         this.engine = engine;
@@ -169,7 +171,7 @@ final class CreateEventDialog {
 
     private void addOutcome() {
         TextField field = new TextField();
-        field.setId("newEventOutcome" + outcomes.getChildren().size());
+        field.setId("newEventOutcome" + outcomesEverAdded++);
         HBox.setHgrow(field, Priority.ALWAYS);
         Button remove = new Button("Remove");
         HBox row = new HBox(6, field, remove);

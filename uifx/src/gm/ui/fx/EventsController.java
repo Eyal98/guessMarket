@@ -131,9 +131,9 @@ public final class EventsController {
         });
         Label label = new Label(caption);
         label.getStyleClass().add("filter-caption");
-        HBox group1 = new HBox(6, label, buttons);
-        group1.setAlignment(Pos.CENTER_LEFT);
-        return group1;
+        HBox captionedButtons = new HBox(6, label, buttons);
+        captionedButtons.setAlignment(Pos.CENTER_LEFT);
+        return captionedButtons;
     }
 
     private Predicate<EventInfoDto> passesFilters() {

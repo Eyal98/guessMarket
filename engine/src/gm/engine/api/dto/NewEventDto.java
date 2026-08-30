@@ -1,5 +1,7 @@
 package gm.engine.api.dto;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -21,6 +23,6 @@ public record NewEventDto(String name, String description, int commissionPercent
 
     public NewEventDto {
         optionNames = optionNames == null ? List.of()
-                : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(optionNames));
+                : Collections.unmodifiableList(new ArrayList<>(optionNames));
     }
 }

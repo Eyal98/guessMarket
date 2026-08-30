@@ -71,8 +71,8 @@ public final class EventDetailView {
         } else {
             showLmsr(engine.marketState(event.number()));
         }
-        content.getChildren().addAll(
-                Charts.titled("How the market has moved", Charts.priceChart(engine.priceHistory(event.number()))));
+        content.getChildren().add(Charts.titled("How the market has moved",
+                Charts.priceChart(engine.priceHistory(event.number()))));
         animations.play(Animations.Motion.APPEARING, content);
     }
 

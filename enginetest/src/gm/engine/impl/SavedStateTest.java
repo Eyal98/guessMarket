@@ -154,6 +154,21 @@ class SavedStateTest {
     }
 
     @Test
+    @DisplayName("A saved market restores from the full file name, which is what the button hands over")
+    void restoresFromTheFullFileName(@TempDir Path folder) {
+        aBusyMarket();
+        double tikvaWas = engine.userDetail(TIKVA).balance();
+        String written = engine.saveState(folder.resolve("market").toString());
+        assertTrue(written.endsWith(".gm"), "saveState should name the file it actually wrote");
+
+        GuessMarketEngine after = new GuessMarketEngineImpl();
+        after.loadState(written);
+
+        assertEquals(3, after.listEvents().size());
+        assertEquals(tikvaWas, after.userDetail(TIKVA).balance(), TOLERANCE);
+    }
+
+    @Test
     @DisplayName("Saving nothing is refused, and so is reading a file that is not one of ours")
     void nonsenseIsRefused(@TempDir Path folder) {
         assertThrows(NoFileLoadedException.class,

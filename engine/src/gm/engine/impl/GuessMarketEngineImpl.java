@@ -106,6 +106,11 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
                 throw new InvalidSelectionException(
                         "Every outcome needs a name, or nobody could choose it.");
             }
+            if (optionNames.stream().anyMatch(already -> already.equalsIgnoreCase(trimmedOption))) {
+                throw new InvalidSelectionException("Two of the outcomes are both called \""
+                        + trimmedOption + "\". They must differ, otherwise there is nothing to"
+                        + " choose between. The events file is held to the same rule.");
+            }
             optionNames.add(trimmedOption);
         }
 

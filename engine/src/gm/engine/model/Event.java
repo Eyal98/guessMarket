@@ -103,6 +103,7 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
      */
     public void open(User actor) {
         requireMarketMaker(actor, "open");
+        requireAbleToAct(actor);
         requireMove(EventStatus.ACTIVE, "opened");
         double cost = openingCost();
         if (marketMaker.account().balance() < cost) {
@@ -136,6 +137,7 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
      */
     public void close(User actor, int winningOptionIndex) {
         requireMarketMaker(actor, "close");
+        requireAbleToAct(actor);
         requireMove(EventStatus.CLOSED, "closed");
         winningOption = options.get(winningOptionIndex);
         status = EventStatus.CLOSED;
@@ -156,8 +158,17 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
             commissionCollected += closingFee;
             totalPaidOut += net;
         }
-        account.drainInto(marketMaker.account());
+        // What is left goes back to the market maker who funded it. It passes through receive()
+        // rather than straight into the account, so it lands on their balance history like every
+        // other movement of their money - otherwise the largest single change of the event's life
+        // would be missing from the chart while showing in the balance printed beside it.
+        double leftover = account.balance();
+        if (leftover != 0) {
+            account.withdraw(leftover);
+            marketMaker.receive(leftover);
+        }
         onClosed();
+        rememberPrices();
     }
 
     /** What it costs this event's market maker to open it. */
@@ -210,11 +221,27 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
      * This is what a chart of the market is drawn from.
      */
     public List<PriceSample> priceHistory() {
-        return List.copyOf(priceHistory);
+        return Collections.unmodifiableList(priceHistory);
     }
 
     private void rememberPrices() {
-        priceHistory.add(new PriceSample(priceHistory.size(), currentPrices()));
+        priceHistory.add(new PriceSample(priceHistory.size(), pricesNow()));
+    }
+
+    /**
+     * What each option is worth at this moment. Once the event has been decided that is no longer a
+     * matter of opinion: the winning option is worth its full payout and the rest are worth nothing,
+     * which is the last thing a chart of the market ought to show.
+     */
+    private List<Double> pricesNow() {
+        if (status != EventStatus.CLOSED) {
+            return currentPrices();
+        }
+        List<Double> settled = new ArrayList<>(options.size());
+        for (EventOption option : options) {
+            settled.add(option == winningOption ? payoutPerWinningShare() : 0.0);
+        }
+        return settled;
     }
 
     /**

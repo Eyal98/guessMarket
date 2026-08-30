@@ -9,8 +9,9 @@ import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
+import javafx.scene.layout.VBox;
 
-import java.util.List;
+import java.util.Objects;
 
 /**
  * The two charts: where an event's prices have been, and where a person's money has been.
@@ -38,7 +39,7 @@ final class Charts {
     static boolean hasAnythingToDraw(PriceHistoryDto history) {
         return history.points().stream()
                 .flatMap(point -> point.pricePerOption().stream())
-                .anyMatch(java.util.Objects::nonNull);
+                .anyMatch(Objects::nonNull);
     }
 
     /** One line per option, showing what each has been worth since the event opened. */
@@ -109,8 +110,8 @@ final class Charts {
         return Math.max(1, (int) Math.ceil(lastStep / (double) MOST_LABELS_ACROSS));
     }
 
-    /** Convenience for the callers, both of which want the same heading above their chart. */
-    static List<Node> titled(String heading, Node chart) {
-        return List.of(EventDetailView.section(heading), chart);
+    /** A heading with its chart beneath it, which is how both callers want to show one. */
+    static VBox titled(String heading, Node chart) {
+        return new VBox(6, EventDetailView.section(heading), chart);
     }
 }

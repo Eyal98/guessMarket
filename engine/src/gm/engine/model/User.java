@@ -2,6 +2,7 @@ package gm.engine.model;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -67,7 +68,7 @@ public final class User implements Serializable {
      * A chart of their fortunes is drawn straight from this.
      */
     public List<BalanceSample> balanceHistory() {
-        return List.copyOf(balanceHistory);
+        return Collections.unmodifiableList(balanceHistory);
     }
 
     private void rememberBalance() {

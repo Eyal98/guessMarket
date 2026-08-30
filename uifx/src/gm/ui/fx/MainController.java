@@ -191,6 +191,10 @@ public final class MainController {
         loadButton.setDisable(busy);
         saveButton.setDisable(busy);
         restoreButton.setDisable(busy);
+        // The reading happens on a background thread while the rest of the screen stays alive, and
+        // the engine is not built to be used from two threads at once. Closing the tabs for the
+        // moment it takes is simpler and safer than making every call on it thread safe.
+        tabs.setDisable(busy);
         if (!busy) {
             loadProgress.progressProperty().unbind();
         }

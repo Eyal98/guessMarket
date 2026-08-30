@@ -117,6 +117,17 @@ class CreatedEventTest {
     }
 
     @Test
+    @DisplayName("Two outcomes with the same name are refused, as they are in a file")
+    void twoOutcomesWithTheSameNameAreRefused() {
+        loaded();
+        NewEventDto sameTwice = new NewEventDto("Rain", "Will it?", 5, "on-purchase",
+                List.of("It will", "IT WILL"), new NewLmsrDto(50));
+
+        assertThrows(InvalidSelectionException.class, () -> engine.createEvent(TIKVA, sameTwice),
+                "the loader refuses this in a file, so the form must not be a way around it");
+    }
+
+    @Test
     @DisplayName("An event with fewer than two outcomes is refused")
     void oneOutcomeIsNotAnEvent() {
         loaded();

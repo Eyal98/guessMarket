@@ -15,6 +15,13 @@ if not exist "%JUNIT%" (
     exit /b 1
 )
 
+if not exist "%FX%\javafx.controls.jar" (
+    echo Cannot find the JavaFX SDK at "%FX%".
+    echo The tests cover the user interface as well as the engine, so the lib\javafx folder
+    echo must sit next to this file. See README.md for which build to fetch.
+    exit /b 1
+)
+
 if defined JAVA_HOME (
     set JAVAC="%JAVA_HOME%\bin\javac"
     set JAVA="%JAVA_HOME%\bin\java"
