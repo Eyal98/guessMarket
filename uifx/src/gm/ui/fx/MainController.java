@@ -176,9 +176,11 @@ public final class MainController {
     }
 
     /**
-     * Loads a chosen file. Package private rather than private so a developer tool can drive the
-     * whole loading path — the background task, the progress and the redraw — without a file
-     * chooser standing in the way. Nothing in the program calls it but {@link #onLoadFile()}.
+     * Loads a chosen file: the background task, the progress and the redraw.
+     * <p>
+     * Package private rather than private so the whole of this path can be driven directly,
+     * without a file chooser standing in the way of it. Nothing in the program itself calls it
+     * but {@link #onLoadFile()}.
      */
     void load(File file) {
         Task<LoadResultDto> loading = new Task<>() {
