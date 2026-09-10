@@ -9,7 +9,7 @@ rem  The two must stay in the same folder, next to a lib\javafx folder:
 rem  guess-market.jar names engine.jar on its class path, and JavaFX is found
 rem  through the module path given in run.bat.
 rem ---------------------------------------------------------------------------
-setlocal
+setlocal enabledelayedexpansion
 
 set ROOT=%~dp0
 set OUT=%ROOT%out
@@ -41,7 +41,7 @@ if exist "%BUILD%" rmdir /s /q "%BUILD%"
 mkdir "%BUILD%"
 
 echo Compiling the engine...
-dir /s /b "%ROOT%engine\src\*.java" > "%SOURCE_LIST%"
+call :listSources "%ROOT%engine\src" "%SOURCE_LIST%"
 %JAVAC% %JAVAC_FLAGS% -d "%OUT%\engine" "@%SOURCE_LIST%"
 if errorlevel 1 goto failed
 
@@ -50,7 +50,7 @@ echo Packing engine.jar...
 if errorlevel 1 goto failed
 
 echo Compiling the JavaFX user interface...
-dir /s /b "%ROOT%uifx\src\*.java" > "%SOURCE_LIST%"
+call :listSources "%ROOT%uifx\src" "%SOURCE_LIST%"
 %JAVAC% %JAVAC_FLAGS% --module-path "%FX%" --add-modules javafx.controls,javafx.fxml -cp "%BUILD%\engine.jar" -d "%OUT%\uifx" "@%SOURCE_LIST%"
 if errorlevel 1 goto failed
 
@@ -63,6 +63,25 @@ echo.
 echo Build finished. The jars are in "%BUILD%".
 echo Run the program with run.bat.
 exit /b 0
+
+:listSources
+rem ---------------------------------------------------------------------------
+rem  Writes an argument file listing every .java file under %~1.
+rem
+rem  Each path is quoted and its separators turned into forward slashes. Plain
+rem  "dir /s /b" output is neither, and javac splits an unquoted path at the
+rem  first space - so building from any folder whose name contains a space
+rem  failed with "invalid flag". Forward slashes are used because a backslash
+rem  is an escape character inside a quoted argument file entry.
+rem ---------------------------------------------------------------------------
+dir /s /b "%~1\*.java" > "%TEMP%\gm-raw-sources.txt"
+break > "%~2"
+for /f "usebackq delims=" %%F in ("%TEMP%\gm-raw-sources.txt") do (
+    set "javaFile=%%F"
+    echo "!javaFile:\=/!">> "%~2"
+)
+del "%TEMP%\gm-raw-sources.txt" 2>nul
+goto :eof
 
 :failed
 del "%SOURCE_LIST%" 2>nul

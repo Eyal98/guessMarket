@@ -35,23 +35,42 @@ if exist "%ROOT%out\enginetest" rmdir /s /q "%ROOT%out\enginetest"
 if exist "%ROOT%out\uifxtest" rmdir /s /q "%ROOT%out\uifxtest"
 if exist "%ROOT%out\uifx" rmdir /s /q "%ROOT%out\uifx"
 if exist "%ROOT%out\engine" rmdir /s /q "%ROOT%out\engine"
-dir /s /b "%ROOT%engine\src\*.java" > "%TEMP%\gm-engine-sources.txt"
+call :listSources "%ROOT%engine\src" "%TEMP%\gm-engine-sources.txt"
 %JAVAC% --release 25 -encoding UTF-8 -Xlint:all -d "%ROOT%out\engine" "@%TEMP%\gm-engine-sources.txt"
 if errorlevel 1 exit /b 1
 
 echo [2/4] Compiling the user interface...
-dir /s /b "%ROOT%uifx\src\*.java" > "%TEMP%\gm-uifx-sources.txt"
+call :listSources "%ROOT%uifx\src" "%TEMP%\gm-uifx-sources.txt"
 %JAVAC% --release 25 -encoding UTF-8 --module-path "%FX%" --add-modules javafx.controls,javafx.fxml -cp "%ROOT%out\engine" -d "%ROOT%out\uifx" "@%TEMP%\gm-uifx-sources.txt"
 if errorlevel 1 exit /b 1
 
 echo [3/4] Compiling tests...
-dir /s /b "%ROOT%enginetest\src\*.java" > "%TEMP%\gm-test-sources.txt"
+call :listSources "%ROOT%enginetest\src" "%TEMP%\gm-test-sources.txt"
 %JAVAC% --release 25 -encoding UTF-8 -cp "%ROOT%out\engine;%JUNIT%" -d "%ROOT%out\enginetest" "@%TEMP%\gm-test-sources.txt"
 if errorlevel 1 exit /b 1
-dir /s /b "%ROOT%uifxtest\src\*.java" > "%TEMP%\gm-uifxtest-sources.txt"
+call :listSources "%ROOT%uifxtest\src" "%TEMP%\gm-uifxtest-sources.txt"
 %JAVAC% --release 25 -encoding UTF-8 --module-path "%FX%" --add-modules javafx.controls,javafx.fxml -cp "%ROOT%out\engine;%ROOT%out\uifx;%JUNIT%" -d "%ROOT%out\uifxtest" "@%TEMP%\gm-uifxtest-sources.txt"
 if errorlevel 1 exit /b 1
 
 echo [4/4] Running tests...
 %JAVA% -Dgm.testfiles="%ROOT%test-files" --module-path "%FX%" --add-modules javafx.controls,javafx.fxml -jar "%JUNIT%" execute --class-path "%ROOT%out\engine;%ROOT%out\enginetest;%ROOT%out\uifx;%ROOT%out\uifxtest;%ROOT%uifx\resources" --scan-class-path "%ROOT%out\enginetest" --scan-class-path "%ROOT%out\uifxtest" --details=tree --disable-ansi-colors
 exit /b %ERRORLEVEL%
+
+:listSources
+rem ---------------------------------------------------------------------------
+rem  Writes an argument file listing every .java file under %~1.
+rem
+rem  Each path is quoted and its separators turned into forward slashes. Plain
+rem  "dir /s /b" output is neither, and javac splits an unquoted path at the
+rem  first space - so building from any folder whose name contains a space
+rem  failed with "invalid flag". Forward slashes are used because a backslash
+rem  is an escape character inside a quoted argument file entry.
+rem ---------------------------------------------------------------------------
+dir /s /b "%~1\*.java" > "%TEMP%\gm-raw-sources.txt"
+break > "%~2"
+for /f "usebackq delims=" %%F in ("%TEMP%\gm-raw-sources.txt") do (
+    set "javaFile=%%F"
+    echo "!javaFile:\=/!">> "%~2"
+)
+del "%TEMP%\gm-raw-sources.txt" 2>nul
+goto :eof

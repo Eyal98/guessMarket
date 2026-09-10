@@ -47,6 +47,19 @@
 **JavaFX אינו חלק מה‑JDK**, ולכן הוא נארז בתוך ההגשה עצמה, בתיקייה `lib\javafx`. אין צורך להתקין
 דבר — התיקייה חייבת רק לשבת ליד ה‑jar.
 
+### מה יש בקובץ ההגשה
+
+```
+guess-market.jar   engine.jar   run.bat   build.bat   test.bat   readme.docx
+lib\javafx\        ספריות JavaFX, נוסעות עם התוכנית
+engine\ uifx\      קוד המקור של שני המודולים
+enginetest\ uifxtest\   קוד הבדיקות
+test-files\        קבצי אירועים לניסוי, כולל הרשמיים תחת ex2
+```
+
+הקוד פרוס בדיוק כמו במאגר, כך ש‑`build.bat` ו‑`test.bat` רצים ישירות מהתיקייה שנפרסה ולא רק
+מהמאגר. נבדק מתיקייה שבשמה רווחים.
+
 ### הרצה
 
 ```
@@ -223,6 +236,7 @@ test.bat
 | `PriceHistoryDto` / `PricePointDto` | היכן עמדו המחירים אחרי כל עסקה. מחיר שאין — `null`. |
 | `BalanceHistoryDto` / `BalancePointDto` | היכן עמדה יתרתו של משתמש אחרי כל תנועת כסף. |
 | `NewEventDto` + `NewMethodDto` (sealed) | ה‑DTO **היחיד שנוסע פנימה**: תיאור של אירוע שהמשתמש רוצה ליצור. ה‑sealed מבטיח שכל שיטת מסחר מקבלת רק את המספרים ששייכים לה. |
+| `NewLmsrDto` / `NewOrderBookDto` | שני המימושים של `NewMethodDto`: האחד נושא את `b`, השני את ההשקעה ההתחלתית, את `d` והאם mint מותר. |
 
 ### קריאת הקובץ — `gm.engine.xml`
 
