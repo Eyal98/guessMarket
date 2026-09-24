@@ -2,7 +2,6 @@ package gm.engine.model.orderbook;
 
 import gm.engine.model.User;
 
-import java.io.Serializable;
 import java.util.Objects;
 
 /**
@@ -13,9 +12,7 @@ import java.util.Objects;
  * mint rule turns on which of two orders was already resting, and the resting one has its price
  * honoured exactly.
  */
-public final class Order implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public final class Order {
 
     private final long sequence;
     private final User user;

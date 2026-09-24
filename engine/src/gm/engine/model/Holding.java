@@ -1,6 +1,5 @@
 package gm.engine.model;
 
-import java.io.Serializable;
 import java.util.Arrays;
 
 /**
@@ -12,9 +11,7 @@ import java.util.Arrays;
  * received is what makes the profit or loss at closing time a subtraction rather than a
  * reconstruction from history.
  */
-public final class Holding implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public final class Holding {
 
     private final long[] shares;
     private final double[] paid;

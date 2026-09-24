@@ -1,7 +1,5 @@
 package gm.engine.model;
 
-import java.io.Serializable;
-
 /**
  * One completed purchase, kept so the event can show its trading history.
  *
@@ -12,8 +10,7 @@ import java.io.Serializable;
  * @param commission what was charged on top as commission, zero unless the event charges on purchase
  */
 public record Trade(String userName, String optionName, long quantity, double sharesCost,
-                    double commission)
-        implements Serializable {
+                    double commission) {
 
     public double totalPaid() {
         return sharesCost + commission;

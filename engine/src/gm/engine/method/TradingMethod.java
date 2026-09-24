@@ -1,16 +1,15 @@
 package gm.engine.method;
 
-import java.io.Serializable;
-
 /**
  * The pricing mechanism of a single event: it decides what an option is currently worth and what a
  * purchase costs.
  * <p>
- * The interface is sealed because the system supports a closed, known set of trading methods. Only
- * LMSR exists in this version; an order book implementation is expected to join it later, and adding
- * it requires nothing beyond a new permitted implementation.
+ * It keeps the LMSR formula apart from the event that uses it, so the arithmetic can be tested on its
+ * own against the numbers in the course material. The order book never became a second method: it
+ * has no formula at all, only people meeting people, so it lives in {@link gm.engine.model.OrderBookEvent}
+ * instead, and this interface stays sealed over the one formula the system has.
  */
-public sealed interface TradingMethod extends Serializable permits LmsrMethod {
+public sealed interface TradingMethod permits LmsrMethod {
 
     /**
      * The amount the market maker has to place in the event account before any trading happens.

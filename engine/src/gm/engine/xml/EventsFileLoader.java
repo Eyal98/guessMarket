@@ -2,34 +2,36 @@ package gm.engine.xml;
 
 import gm.engine.api.FileLoadException;
 import gm.engine.model.Event;
-import gm.engine.model.SystemState;
-import gm.engine.model.User;
 import org.w3c.dom.Document;
 import org.xml.sax.ErrorHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Predicate;
 
 /**
- * Reads an events file and turns it into events, or explains exactly why it cannot.
+ * Reads an uploaded events file and turns it into events, or explains exactly why it cannot.
  * <p>
- * Checking happens in two passes. Faults that make the rest of the file meaningless, such as a
- * missing file or text that is not XML at all, stop the load at once. Everything else is gathered:
- * each event is examined in full and every fault recorded, so a single attempt reports all of them
- * together.
+ * The file never exists on the server. It arrives as the bytes of an upload and is read straight from
+ * them, which is what the exercise demands: the checker's server has no permission to write anywhere.
  * <p>
- * Nothing here touches the state of the system. The caller receives events only when the whole file
- * was sound, which is what lets a faulty file leave a previously loaded file untouched.
+ * Checking happens in two passes. Faults that make the rest of the file meaningless, such as text that
+ * is not XML at all, stop at once. Everything else is gathered: each event is examined in full and
+ * every fault recorded, so a single upload reports all of them together.
+ * <p>
+ * Nothing here touches the market. The caller receives events only when the whole file was sound, and
+ * decides for itself who runs them, which is what lets a faulty file change nothing at all.
  */
 public final class EventsFileLoader {
 
@@ -37,60 +39,60 @@ public final class EventsFileLoader {
     private static final String ROOT_ELEMENT = "Guess-Market";
     private static final String EVENTS_ELEMENT = "GM-events";
     private static final String EVENT_ELEMENT = "GM-event";
+    /** Exercise 2's list of users, which exercise 3 files no longer carry. */
     private static final String USERS_ELEMENT = "GM-users";
-    private static final String USER_ELEMENT = "GM-user";
 
     /**
-     * Reads the file at {@code path}.
+     * Reads one uploaded file.
      *
-     * @return the events and users it describes, in the order they appear
-     * @throws FileLoadException if the file cannot be read or does not describe a sound market
+     * @param fileName         the name the file had on the uploader's computer, which must end in .xml
+     * @param content          the file's bytes
+     * @param nameAlreadyTaken whether the market already holds an event of a given name
+     * @return the events it describes, in the order they appear, not yet run by anybody
+     * @throws FileLoadException if there is no file, or it does not describe a sound set of new events
      */
-    public SystemState load(String path) {
-        XmlNode root = new XmlNode(parse(readableFileAt(path)).getDocumentElement());
+    public List<Event> read(String fileName, InputStream content, Predicate<String> nameAlreadyTaken) {
+        requireXmlFile(fileName, content);
+        XmlNode root = new XmlNode(parse(content).getDocumentElement());
         if (!root.isNamed(ROOT_ELEMENT)) {
             throw new FileLoadException("this is not a Guess Market file: its root element is <" + root.name()
                     + "> instead of <" + ROOT_ELEMENT + ">.");
         }
-        if (root.child(USERS_ELEMENT).isEmpty()) {
-            throw new FileLoadException("it has no <" + USERS_ELEMENT + "> element. This looks like a file"
-                    + " written for the earlier version of the exercise, which had no users; this version"
-                    + " needs one.");
+        if (root.child(USERS_ELEMENT).isPresent()) {
+            throw new FileLoadException("it has a <" + USERS_ELEMENT + "> element, which belongs to the files"
+                    + " of exercise 2. In this version nobody arrives in a file: people log in by name, and"
+                    + " whoever uploads a file becomes the market maker of every event in it.");
         }
-        return readMarket(root);
+        return readEvents(root, nameAlreadyTaken);
     }
 
-    private File readableFileAt(String path) {
-        if (path == null || path.isBlank()) {
-            throw new FileLoadException("no file path was given.");
+    private static void requireXmlFile(String fileName, InputStream content) {
+        if (fileName == null || fileName.isBlank() || content == null) {
+            throw new FileLoadException("there is no file in the upload. Please choose an XML file to send.");
         }
-        String trimmed = path.trim();
-        File file = new File(trimmed);
-        if (!file.exists()) {
-            throw new FileLoadException("there is no file at \"" + trimmed + "\".");
+        if (!fileName.trim().toLowerCase(Locale.ROOT).endsWith(XML_EXTENSION)) {
+            throw new FileLoadException("\"" + fileName.trim() + "\" is not an XML file. The file name must"
+                    + " end with " + XML_EXTENSION + ".");
         }
-        if (!file.isFile()) {
-            throw new FileLoadException("\"" + trimmed + "\" is a folder, not a file.");
-        }
-        if (!trimmed.toLowerCase(Locale.ROOT).endsWith(XML_EXTENSION)) {
-            throw new FileLoadException("\"" + trimmed + "\" is not an XML file. The file name must end with "
-                    + XML_EXTENSION + ".");
-        }
-        if (!file.canRead()) {
-            throw new FileLoadException("the file \"" + trimmed + "\" cannot be read. Please check that it is"
-                    + " not open in another program and that you have permission to read it.");
-        }
-        return file;
     }
 
-    private Document parse(File file) {
+    /**
+     * Parses the bytes, refusing any document type declaration. A file from somebody else's computer
+     * has no business asking the server to fetch other files or expand entities on its behalf, and no
+     * Guess Market file needs one.
+     */
+    private static Document parse(InputStream content) {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setExpandEntityReferences(false);
+            factory.setXIncludeAware(false);
             factory.setIgnoringComments(true);
             factory.setCoalescing(true);
             DocumentBuilder builder = factory.newDocumentBuilder();
             builder.setErrorHandler(new FailOnAnyError());
-            return builder.parse(file);
+            return builder.parse(content);
         } catch (SAXParseException e) {
             throw new FileLoadException("the file is not a valid XML document. Line " + e.getLineNumber()
                     + ", column " + e.getColumnNumber() + ": " + e.getMessage());
@@ -99,11 +101,16 @@ public final class EventsFileLoader {
         }
     }
 
-    private SystemState readMarket(XmlNode root) {
-        List<String> problems = new ArrayList<>();
+    private List<Event> readEvents(XmlNode root, Predicate<String> nameAlreadyTaken) {
+        XmlNode container = root.child(EVENTS_ELEMENT).orElseThrow(() -> new FileLoadException(
+                "it has no <" + EVENTS_ELEMENT + "> element."));
+        List<XmlNode> eventNodes = container.children(EVENT_ELEMENT);
+        if (eventNodes.isEmpty()) {
+            throw new FileLoadException("it contains no events. A Guess Market file needs at least one <"
+                    + EVENT_ELEMENT + ">.");
+        }
 
-        List<XmlNode> eventNodes = childrenOf(root, EVENTS_ELEMENT, EVENT_ELEMENT,
-                "it contains no events. A Guess Market file needs at least one <" + EVENT_ELEMENT + ">.");
+        List<String> problems = new ArrayList<>();
         List<Event> events = new ArrayList<>();
         List<EventNodeReader> readers = new ArrayList<>();
         for (int i = 0; i < eventNodes.size(); i++) {
@@ -111,95 +118,35 @@ public final class EventsFileLoader {
             readers.add(reader);
             reader.read().ifPresent(events::add);
         }
-        checkIdsAreUnique(readers, problems);
-
-        List<XmlNode> userNodes = childrenOf(root, USERS_ELEMENT, USER_ELEMENT,
-                "it contains no users. A Guess Market file needs at least one <" + USER_ELEMENT + ">.");
-        List<User> users = new ArrayList<>();
-        List<UserNodeReader> userReaders = new ArrayList<>();
-        for (int i = 0; i < userNodes.size(); i++) {
-            UserNodeReader reader = new UserNodeReader(userNodes.get(i), i + 1, problems);
-            userReaders.add(reader);
-            reader.read().ifPresent(users::add);
-        }
-        checkNamesAreUnique(users, problems);
-        assignMarketMakers(events, users, userReaders, problems);
+        checkNamesAreNew(readers, nameAlreadyTaken, problems);
 
         if (!problems.isEmpty()) {
             throw new FileLoadException(problems);
         }
-        return new SystemState(events, users);
-    }
-
-    private List<XmlNode> childrenOf(XmlNode root, String containerName, String itemName, String ifEmpty) {
-        XmlNode container = root.child(containerName).orElseThrow(() -> new FileLoadException(
-                "it has no <" + containerName + "> element."));
-        List<XmlNode> items = container.children(itemName);
-        if (items.isEmpty()) {
-            throw new FileLoadException(ifEmpty);
-        }
-        return items;
-    }
-
-    private void checkNamesAreUnique(List<User> users, List<String> problems) {
-        Map<String, String> seen = new HashMap<>();
-        for (User user : users) {
-            String earlier = seen.putIfAbsent(user.name().toLowerCase(Locale.ROOT), user.name());
-            if (earlier != null) {
-                problems.add("Two users are both called \"" + user.name()
-                        + "\". Every user must have a name of their own.");
-            }
-        }
+        return events;
     }
 
     /**
-     * Hands each event to the user who claims to run it, and complains about both ways that can go
-     * wrong: a user pointing at an event that is not there, and an event nobody has claimed.
+     * Events are told apart by their names alone, so no two may share one: not two in the same file,
+     * and not one in the file with one already in the market. Every event that declared a name is
+     * checked, including events that are faulty in other ways, so that a clash is reported alongside
+     * everything else rather than only once the rest has been put right.
      */
-    private void assignMarketMakers(List<Event> events, List<User> users,
-                                    List<UserNodeReader> userReaders, List<String> problems) {
-        Map<Integer, Event> eventsById = new HashMap<>();
-        for (Event event : events) {
-            eventsById.put(event.id(), event);
-        }
-        for (int i = 0; i < userReaders.size() && i < users.size(); i++) {
-            UserNodeReader reader = userReaders.get(i);
-            User user = users.get(i);
-            for (int eventId : reader.runsEventIds()) {
-                Event event = eventsById.get(eventId);
-                if (event == null) {
-                    problems.add(reader.label() + ": it is the market maker of event " + eventId
-                            + ", but no event has that id.");
-                    continue;
-                }
-                if (event.marketMaker() != null) {
-                    problems.add("Event \"" + event.name() + "\" has two market makers, "
-                            + event.marketMaker().name() + " and " + user.name()
-                            + ". Every event must have exactly one.");
-                    continue;
-                }
-                event.assignMarketMaker(user);
-            }
-        }
-        for (Event event : events) {
-            if (event.marketMaker() == null) {
-                problems.add("Event \"" + event.name()
-                        + "\" has no market maker. Every event must be run by exactly one user.");
-            }
-        }
-    }
-
-    private void checkIdsAreUnique(List<EventNodeReader> readers, List<String> problems) {
-        Map<Integer, String> firstUseOfId = new HashMap<>();
+    private static void checkNamesAreNew(List<EventNodeReader> readers, Predicate<String> nameAlreadyTaken,
+                                         List<String> problems) {
+        Map<String, String> firstUseOfName = new HashMap<>();
         for (EventNodeReader reader : readers) {
-            if (reader.declaredId().isEmpty()) {
+            String name = reader.declaredName();
+            if (name == null || name.isBlank()) {
                 continue;
             }
-            int id = reader.declaredId().getAsInt();
-            String earlier = firstUseOfId.putIfAbsent(id, reader.label());
+            String earlier = firstUseOfName.putIfAbsent(name.trim().toLowerCase(Locale.ROOT), reader.label());
             if (earlier != null) {
-                problems.add(reader.label() + ": its id is " + id + ", which is already used by " + earlier
-                        + ". Every event must have an id of its own.");
+                problems.add(reader.label() + ": its name is the same as that of " + earlier
+                        + ". Every event needs a name of its own.");
+            } else if (nameAlreadyTaken.test(name)) {
+                problems.add(reader.label() + ": there is already an event called \"" + name.trim()
+                        + "\" in the market. Every event needs a name of its own.");
             }
         }
     }

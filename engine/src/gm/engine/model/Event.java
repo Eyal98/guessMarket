@@ -1,10 +1,12 @@
 package gm.engine.model;
 
-import java.io.Serializable;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -19,44 +21,30 @@ import java.util.Objects;
  * <p>
  * All the money of an event flows through {@link #account()}. The market maker fills it on opening,
  * trading adds to it, and closing empties it: every holder of the winning option is paid for their
- * own shares, and whatever remains goes back to the market maker who funded it.
+ * own shares, and whatever remains goes back to the market maker who funded it. Every one of those
+ * movements that touches a person is written into that person's ledger with a description of its own.
+ * <p>
+ * An event has no number of its own. Events arrive from many files uploaded by many people, and what
+ * tells them apart is their name.
  */
-public abstract sealed class Event implements Serializable permits LmsrEvent, OrderBookEvent {
-
-    private static final long serialVersionUID = 1L;
+public abstract sealed class Event permits LmsrEvent, OrderBookEvent {
 
     /** Fewer than this many outcomes would leave nothing to choose between. */
     public static final int MINIMUM_OPTIONS = 2;
 
     /**
-     * Where every option stood after one particular trade.
-     * <p>
-     * A price may be missing. An order book has nothing to report until two people have actually
-     * agreed on something, and writing nought there would claim a share is worthless when the truth
-     * is that nobody has said yet, so the entry is null and whatever draws the chart leaves a gap.
+     * Anything left in an event's account smaller than this, after every winner has been paid, is
+     * the dust of floating point arithmetic rather than money, and is not worth a line in anybody's
+     * ledger.
      */
-    public record PriceSample(int step, List<Double> pricePerOption) implements Serializable {
-        public PriceSample {
-            pricePerOption = Collections.unmodifiableList(new ArrayList<>(pricePerOption));
-        }
-    }
+    private static final double MONEY_DUST = 1e-9;
 
-    private final int id;
     private final String name;
     private final String description;
     private final Commission commission;
-    /** Always an immutable list, which is serializable; the declared type simply cannot say so. */
-    @SuppressWarnings("serial")
     private final List<EventOption> options;
     private final Account account = new Account();
-    /** Always an ArrayList, which is serializable; the declared type simply cannot say so. */
-    @SuppressWarnings("serial")
     private final List<Trade> history = new ArrayList<>();
-    /** Always an ArrayList, which is serializable; the declared type simply cannot say so. */
-    @SuppressWarnings("serial")
-    private final List<PriceSample> priceHistory = new ArrayList<>();
-    /** Always a LinkedHashMap, which is serializable; the declared type simply cannot say so. */
-    @SuppressWarnings("serial")
     private final Map<User, Holding> holdings = new LinkedHashMap<>();
 
     private EventStatus status = EventStatus.NOT_STARTED;
@@ -65,9 +53,7 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
     private double commissionCollected;
     private double totalPaidOut;
 
-    protected Event(int id, String name, String description, Commission commission,
-                    List<String> optionNames) {
-        this.id = id;
+    protected Event(String name, String description, Commission commission, List<String> optionNames) {
         this.name = Objects.requireNonNull(name, "name");
         this.description = Objects.requireNonNull(description, "description");
         this.commission = Objects.requireNonNull(commission, "commission");
@@ -80,8 +66,8 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
     }
 
     /**
-     * Names the user who runs this event. The file lists events before it lists users, so the market
-     * maker arrives after the event itself and can only ever be named once.
+     * Names the user who runs this event: whoever uploaded the file it came in. It can only ever be
+     * named once.
      */
     public void assignMarketMaker(User owner) {
         if (marketMaker != null) {
@@ -108,13 +94,13 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
         double cost = openingCost();
         if (marketMaker.account().balance() < cost) {
             throw new IllegalStateException(marketMaker.name() + " cannot open \"" + name + "\": it costs "
-                    + cost + " and the account holds " + marketMaker.account().balance() + ".");
+                    + amount(cost) + " and the account holds " + amount(marketMaker.account().balance())
+                    + ". Load more funds first.");
         }
-        marketMaker.pay(cost);
+        marketMaker.pay(cost, "Opened \"" + name + "\" (" + openingPurpose() + ")");
         account.deposit(cost);
         status = EventStatus.ACTIVE;
         onOpened();
-        rememberPrices();
     }
 
     /** What this user holds here. Reading it does not make them a participant. */
@@ -132,8 +118,8 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
      * Decides the event: pays the holders of the winning option, takes the closing commission if the
      * event charges one, and returns what is left to the market maker.
      *
+     * @param actor              who is asking, who must be the market maker
      * @param winningOptionIndex the zero based index of the option the event ended on
-     * @param marketMaker        the account that funded the subsidy
      */
     public void close(User actor, int winningOptionIndex) {
         requireMarketMaker(actor, "close");
@@ -147,32 +133,61 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
             if (winningShares == 0) {
                 continue;
             }
+            User winner = entry.getKey();
             double gross = winningShares * payoutPerWinningShare();
             double closingFee = commission.closingFee(gross);
-            double net = gross - closingFee;
 
             account.withdraw(gross);
-            marketMaker.receive(closingFee);
-            entry.getKey().receive(net);
-            entry.getValue().recordPayout(net);
-            commissionCollected += closingFee;
-            totalPaidOut += net;
+            winner.receive(gross, "Won " + winningShares + " of \"" + winningOption.name() + "\" in \""
+                    + name + "\"");
+            chargeCommission(winner, closingFee, "closing \"" + name + "\"");
+            entry.getValue().recordPayout(gross - closingFee);
+            totalPaidOut += gross - closingFee;
         }
-        // What is left goes back to the market maker who funded it. It passes through receive()
-        // rather than straight into the account, so it lands on their balance history like every
-        // other movement of their money - otherwise the largest single change of the event's life
-        // would be missing from the chart while showing in the balance printed beside it.
-        double leftover = account.balance();
-        if (leftover != 0) {
-            account.withdraw(leftover);
-            marketMaker.receive(leftover);
-        }
+        settleWhatIsLeft();
         onClosed();
-        rememberPrices();
+    }
+
+    /**
+     * Hands whatever the winners did not take back to the market maker who funded the event. The
+     * formulas never leave a real shortfall, but an account can end a hair below zero through
+     * floating point alone, so dust is swept away and anything beyond it is settled in whichever
+     * direction it points.
+     */
+    private void settleWhatIsLeft() {
+        double leftover = account.balance();
+        if (Math.abs(leftover) < MONEY_DUST) {
+            return;
+        }
+        if (leftover > 0) {
+            account.withdraw(leftover);
+            marketMaker.receive(leftover, "What was left in \"" + name + "\" when it closed");
+        } else {
+            marketMaker.pay(-leftover, "Covered the shortfall of \"" + name + "\" when it closed");
+            account.deposit(-leftover);
+        }
+    }
+
+    /**
+     * Takes a commission from somebody and hands it to the market maker, whose income it is. Both
+     * sides get a line in their ledgers, so the market maker can see who paid them and what for.
+     *
+     * @param forWhat what the commission was charged on, in words that complete "commission for ..."
+     */
+    protected void chargeCommission(User payer, double fee, String forWhat) {
+        if (fee <= 0) {
+            return;
+        }
+        payer.pay(fee, "Commission to " + marketMaker.name() + " for " + forWhat);
+        marketMaker.receive(fee, "Commission from " + payer.name() + " for " + forWhat);
+        commissionCollected += fee;
     }
 
     /** What it costs this event's market maker to open it. */
     public abstract double openingCost();
+
+    /** What the opening payment buys, in a few words, for the market maker's ledger. */
+    protected abstract String openingPurpose();
 
     /** What one share of the winning option is worth once the event closes. */
     public abstract double payoutPerWinningShare();
@@ -199,56 +214,10 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
         // Nothing by default.
     }
 
-    public int id() {
-        return id;
-    }
-
-    /**
-     * Records a completed trade and the commission it earned the market maker.
-     * <p>
-     * Every settlement in both kinds of event ends here, which makes it the one place that has to
-     * remember where the prices stood afterwards. Hooking the chart in at this single point means no
-     * future trading path can be added and quietly forget to record itself.
-     */
-    protected void recordTrade(Trade trade, double commissionEarned) {
+    /** Records a completed trade, for the event's history. */
+    protected void recordTrade(Trade trade) {
         history.add(trade);
-        commissionCollected += commissionEarned;
-        rememberPrices();
     }
-
-    /**
-     * Every set of prices this event has stood at, oldest first, beginning with the moment it opened.
-     * This is what a chart of the market is drawn from.
-     */
-    public List<PriceSample> priceHistory() {
-        return Collections.unmodifiableList(priceHistory);
-    }
-
-    private void rememberPrices() {
-        priceHistory.add(new PriceSample(priceHistory.size(), pricesNow()));
-    }
-
-    /**
-     * What each option is worth at this moment. Once the event has been decided that is no longer a
-     * matter of opinion: the winning option is worth its full payout and the rest are worth nothing,
-     * which is the last thing a chart of the market ought to show.
-     */
-    private List<Double> pricesNow() {
-        if (status != EventStatus.CLOSED) {
-            return currentPrices();
-        }
-        List<Double> settled = new ArrayList<>(options.size());
-        for (EventOption option : options) {
-            settled.add(option == winningOption ? payoutPerWinningShare() : 0.0);
-        }
-        return settled;
-    }
-
-    /**
-     * What each option is worth at this moment, in the order the options are listed, with null for an
-     * option the market cannot price yet.
-     */
-    protected abstract List<Double> currentPrices();
 
     public String name() {
         return name;
@@ -327,14 +296,24 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
     }
 
     protected void requireTradable(String whatFailed) {
-        requireOpen(whatFailed);
-    }
-
-    protected void requireOpen(String whatFailed) {
         if (!isOpen()) {
             throw new IllegalStateException(whatFailed + " because the event \"" + name
-                    + "\" is " + status.displayName().toLowerCase(java.util.Locale.US) + ".");
+                    + "\" is " + status.displayName().toLowerCase(Locale.US) + ".");
         }
+    }
+
+    /** "10 of "Yes" in "Rain"", the phrase every trading line in a ledger is built around. */
+    protected String sharesOf(long quantity, int optionIndex) {
+        return quantity + " of \"" + options.get(optionIndex).name() + "\" in \"" + name + "\"";
+    }
+
+    /**
+     * A price or an amount as a person would write it: never more than four decimals, and no trailing
+     * zeros, so a price agreed at 0.58 reads 0.58 even when the arithmetic that produced it did not
+     * land on it exactly.
+     */
+    protected static String amount(double value) {
+        return BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();
     }
 
     private void requireMarketMaker(User actor, String what) {
@@ -350,7 +329,7 @@ public abstract sealed class Event implements Serializable permits LmsrEvent, Or
     private void requireMove(EventStatus next, String what) {
         if (!status.canMoveTo(next)) {
             throw new IllegalStateException("The event \"" + name + "\" cannot be " + what
-                    + " because it is " + status.displayName().toLowerCase(java.util.Locale.US) + ".");
+                    + " because it is " + status.displayName().toLowerCase(Locale.US) + ".");
         }
     }
 }

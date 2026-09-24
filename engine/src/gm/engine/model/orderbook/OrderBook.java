@@ -1,6 +1,5 @@
 package gm.engine.model.orderbook;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -18,9 +17,7 @@ import java.util.OptionalDouble;
  * spread either; saying so is the honest answer and the supplied simulation shows a dash in exactly
  * those places.
  */
-public final class OrderBook implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public final class OrderBook {
 
     /** Best offer first, and among equals whoever arrived first. */
     private static final Comparator<Order> BEST_BID_FIRST =
@@ -29,10 +26,7 @@ public final class OrderBook implements Serializable {
     private static final Comparator<Order> BEST_ASK_FIRST =
             Comparator.comparingDouble(Order::price).thenComparingLong(Order::sequence);
 
-    /** Always ArrayLists, which are serializable; the declared types simply cannot say so. */
-    @SuppressWarnings("serial")
     private final List<Order> bids = new ArrayList<>();
-    @SuppressWarnings("serial")
     private final List<Order> asks = new ArrayList<>();
 
     private Double lastTradedPrice;

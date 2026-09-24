@@ -17,14 +17,14 @@ import java.util.List;
  * <p>
  * Two quite different things can happen when an order arrives. It may meet somebody willing to take
  * the other side of that same option, in which case shares change hands and the money passes straight
- * between the two people. Or, where the event allows it, a buyer may meet a buyer of the
- * <em>opposite</em> option whose price added to their own reaches the base value — and then no shares
- * change hands at all: a new pair is brought into existence and both buyers pay the event for their
- * half of it.
+ * between the two people. Or, where the event allows it, a buyer may meet buyers of <em>every other</em>
+ * option whose prices added to their own reach the base value — and then no shares change hands at
+ * all: a complete set, one new share of every option, is brought into existence and each buyer pays
+ * the event for their part of it. With two options that is the single opposing buyer the course
+ * describes; with more, a complete set is the only thing the event can always pay out on, whichever
+ * option wins.
  */
 public final class OrderBookEvent extends Event {
-
-    private static final long serialVersionUID = 1L;
 
     /** No single share may be priced at a whole base value, so the finest step below it is a penny. */
     private static final double SMALLEST_PRICE_STEP = 0.01;
@@ -34,16 +34,13 @@ public final class OrderBookEvent extends Event {
     private final int initialInvestment;
     private final int baseValue;
     private final boolean allowMint;
-    /** Always an ArrayList, which is serializable; the declared type simply cannot say so. */
-    @SuppressWarnings("serial")
     private final List<OrderBook> books = new ArrayList<>();
 
     private long ordersReceived;
 
-    public OrderBookEvent(int id, String name, String description, Commission commission,
-                          List<String> optionNames, int initialInvestment, int baseValue,
-                          boolean allowMint) {
-        super(id, name, description, commission, optionNames);
+    public OrderBookEvent(String name, String description, Commission commission, List<String> optionNames,
+                          int initialInvestment, int baseValue, boolean allowMint) {
+        super(name, description, commission, optionNames);
         if (baseValue < 1) {
             throw new IllegalArgumentException(
                     "The base value (d) must be a positive whole number, but it is " + baseValue + ".");
@@ -60,7 +57,7 @@ public final class OrderBookEvent extends Event {
         }
     }
 
-    /** What one share of the winning option pays, and the most a whole pair can ever be worth. */
+    /** What one share of the winning option pays, and so what a complete set is always worth. */
     public int baseValue() {
         return baseValue;
     }
@@ -70,14 +67,14 @@ public final class OrderBookEvent extends Event {
         return initialInvestment;
     }
 
-    /** Whether two opposing buyers may between them bring new shares into existence. */
+    /** Whether buyers of every option may between them bring new shares into existence. */
     public boolean allowsMint() {
         return allowMint;
     }
 
     /**
-     * The highest price a single share may be offered at. A pair is only ever worth the base value,
-     * so no one share can be worth the whole of it.
+     * The highest price a single share may be offered at. A complete set is only ever worth the base
+     * value, so no one share can be worth the whole of it.
      */
     public double highestAllowedPrice() {
         return baseValue - SMALLEST_PRICE_STEP;
@@ -91,6 +88,11 @@ public final class OrderBookEvent extends Event {
     @Override
     public double openingCost() {
         return initialInvestment;
+    }
+
+    @Override
+    protected String openingPurpose() {
+        return "opening stock: " + openingSets() + " of each option";
     }
 
     @Override
@@ -115,29 +117,22 @@ public final class OrderBookEvent extends Event {
      */
     @Override
     protected void onOpened() {
-        long pairs = initialInvestment / baseValue;
-        if (pairs == 0) {
+        long sets = openingSets();
+        if (sets == 0) {
             return;
         }
         Holding holding = holdingFor(marketMaker());
         double paidPerOption = (double) initialInvestment / options().size();
         for (int optionIndex = 0; optionIndex < options().size(); optionIndex++) {
-            options().get(optionIndex).addShares(pairs);
-            holding.recordPurchase(optionIndex, pairs, paidPerOption, 0.0);
+            options().get(optionIndex).addShares(sets);
+            holding.recordPurchase(optionIndex, sets, paidPerOption, 0.0);
         }
     }
 
-    /**
-     * An order book has nothing to say about an option until two people have agreed on a price for
-     * it, so an option that has never traded reports nothing rather than nought.
-     */
-    @Override
-    protected List<Double> currentPrices() {
-        List<Double> prices = new ArrayList<>(books.size());
-        for (OrderBook book : books) {
-            prices.add(book.lastTradedPrice().isPresent() ? book.lastTradedPrice().getAsDouble() : null);
-        }
-        return prices;
+
+    /** How many complete sets, one share of every option, the opening investment buys. */
+    private long openingSets() {
+        return initialInvestment / baseValue;
     }
 
     /** Closing the market ends it for good, so nothing left waiting could ever be filled. */
@@ -173,7 +168,7 @@ public final class OrderBookEvent extends Event {
         if (side == OrderSide.BUY) {
             matchAgainstAsks(order, optionIndex, trades);
             if (allowMint) {
-                mintAgainstOpposingBuyers(order, optionIndex, trades);
+                mintCompleteSets(order, optionIndex, trades);
             }
         } else {
             matchAgainstBids(order, optionIndex, trades);
@@ -225,67 +220,101 @@ public final class OrderBookEvent extends Event {
         double value = quantity * price;
         double fee = commission().purchaseFee(value);
 
-        buyer.pay(value + fee);
-        seller.receive(value);
-        marketMaker().receive(fee);
+        String at = " at " + amount(price);
+        buyer.pay(value, "Bought " + sharesOf(quantity, optionIndex) + " from " + seller.name() + at);
+        seller.receive(value, "Sold " + sharesOf(quantity, optionIndex) + " to " + buyer.name() + at);
+        chargeCommission(buyer, fee, "buying " + sharesOf(quantity, optionIndex));
 
         holdingFor(seller).recordSale(optionIndex, quantity, value);
         holdingFor(buyer).recordPurchase(optionIndex, quantity, value, fee);
 
         Trade trade = new Trade(buyer.name(), options().get(optionIndex).name(), quantity, value, fee);
-        recordTrade(trade, fee);
+        recordTrade(trade);
         return trade;
     }
 
     /**
-     * A buyer of one option meeting buyers of the other whose prices together reach the base value.
+     * A buyer of one option meeting the best buyers of every other option, whose prices together reach
+     * the base value.
      * <p>
-     * Nobody gives up any shares here: a new pair is created for each match and both buyers pay the
-     * event for their half. The order that was already resting keeps the price it asked for, and the
-     * incoming one pays whatever completes the base value — which can only be the same as, or better
-     * than, the price it was willing to pay.
+     * Nobody gives up any shares here: a complete set is created for each unit matched and every buyer
+     * pays the event for their share of it. The orders already resting keep the prices they asked for,
+     * and the incoming one pays whatever completes the base value — which can only be the same as, or
+     * better than, the price it was willing to pay. Sets are minted in the largest quantity every one
+     * of the buyers can take, and the matching carries on for as long as the best remaining bids still
+     * reach the base value.
      */
-    private void mintAgainstOpposingBuyers(Order incoming, int optionIndex, List<Trade> trades) {
-        for (int otherIndex = 0; otherIndex < books.size(); otherIndex++) {
-            if (otherIndex == optionIndex) {
-                continue;
+    private void mintCompleteSets(Order incoming, int optionIndex, List<Trade> trades) {
+        while (!incoming.isFilled()) {
+            List<Order> partners = bestBidOfEveryOtherOption(optionIndex);
+            if (partners.isEmpty()) {
+                return;
             }
-            OrderBook otherBook = books.get(otherIndex);
-            for (Order resting : otherBook.bids()) {
-                if (incoming.isFilled()
-                        || resting.price() + incoming.price() < baseValue - PRICE_TOLERANCE) {
-                    break;
-                }
-                long minted = Math.min(incoming.remaining(), resting.remaining());
-                double restingPrice = resting.price();
-                double incomingPrice = baseValue - restingPrice;
-
-                otherBook.recordTrade(restingPrice);
-                books.get(optionIndex).recordTrade(incomingPrice);
-                trades.add(settleMintedHalf(resting.user(), otherIndex, minted, restingPrice));
-                trades.add(settleMintedHalf(incoming.user(), optionIndex, minted, incomingPrice));
-
-                incoming.reduceBy(minted);
-                resting.reduceBy(minted);
+            double partnersPay = partners.stream().mapToDouble(Order::price).sum();
+            if (partnersPay + incoming.price() < baseValue - PRICE_TOLERANCE) {
+                return;
             }
-            otherBook.removeFilled();
+            long sets = incoming.remaining();
+            for (Order partner : partners) {
+                sets = Math.min(sets, partner.remaining());
+            }
+            for (Order partner : partners) {
+                int partnerOption = optionOf(partner);
+                books.get(partnerOption).recordTrade(partner.price());
+                trades.add(settleMintedShare(partner.user(), partnerOption, sets, partner.price()));
+                partner.reduceBy(sets);
+                books.get(partnerOption).removeFilled();
+            }
+            double incomingPrice = baseValue - partnersPay;
+            books.get(optionIndex).recordTrade(incomingPrice);
+            trades.add(settleMintedShare(incoming.user(), optionIndex, sets, incomingPrice));
+            incoming.reduceBy(sets);
         }
     }
 
-    /** One buyer's side of a mint: they pay the event, and brand new shares appear in their hands. */
-    private Trade settleMintedHalf(User buyer, int optionIndex, long quantity, double price) {
+    /**
+     * The best bid resting on every option but one, in option order, or nothing at all if any of them
+     * has no bid: a set with a missing share cannot be minted.
+     */
+    private List<Order> bestBidOfEveryOtherOption(int exceptOption) {
+        List<Order> best = new ArrayList<>();
+        for (int other = 0; other < books.size(); other++) {
+            if (other == exceptOption) {
+                continue;
+            }
+            List<Order> bids = books.get(other).bids();
+            if (bids.isEmpty()) {
+                return List.of();
+            }
+            best.add(bids.get(0));
+        }
+        return best;
+    }
+
+    private int optionOf(Order resting) {
+        for (int option = 0; option < books.size(); option++) {
+            if (books.get(option).bids().contains(resting)) {
+                return option;
+            }
+        }
+        throw new IllegalStateException("A resting order was found in no book at all.");
+    }
+
+    /** One buyer's part of a mint: they pay the event, and brand new shares appear in their hands. */
+    private Trade settleMintedShare(User buyer, int optionIndex, long quantity, double price) {
         double value = quantity * price;
         double fee = commission().purchaseFee(value);
 
-        buyer.pay(value + fee);
+        buyer.pay(value, "Bought " + quantity + " new shares of \"" + options().get(optionIndex).name()
+                + "\" in \"" + name() + "\" at " + amount(price));
         account().deposit(value);
-        marketMaker().receive(fee);
+        chargeCommission(buyer, fee, "buying " + sharesOf(quantity, optionIndex));
 
         options().get(optionIndex).addShares(quantity);
         holdingFor(buyer).recordPurchase(optionIndex, quantity, value, fee);
 
         Trade trade = new Trade(buyer.name(), options().get(optionIndex).name(), quantity, value, fee);
-        recordTrade(trade, fee);
+        recordTrade(trade);
         return trade;
     }
 
@@ -295,8 +324,8 @@ public final class OrderBookEvent extends Event {
         }
         if (price > highestAllowedPrice() + PRICE_TOLERANCE) {
             throw new IllegalArgumentException("A single share cannot be priced at " + price
-                    + ": a whole pair is only worth " + baseValue + ", so the most one share can ask is "
-                    + highestAllowedPrice() + ".");
+                    + ": a winning share is only ever worth " + baseValue + ", so the most one share can"
+                    + " ask is " + amount(highestAllowedPrice()) + ".");
         }
     }
 

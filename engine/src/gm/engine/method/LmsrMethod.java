@@ -16,8 +16,6 @@ package gm.engine.method;
  */
 public final class LmsrMethod implements TradingMethod {
 
-    private static final long serialVersionUID = 1L;
-
     /** The liquidity index, called b in the course material. Higher means steadier prices. */
     private final int liquidity;
 

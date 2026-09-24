@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static gm.engine.TestUsers.funded;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -21,9 +22,9 @@ class OrderBookTest {
 
     private static final double TOLERANCE = 0.0001;
 
-    private final User bob = new User("Bob", 1000);
-    private final User carol = new User("Carol", 1000);
-    private final User zoe = new User("Zoe", 1000);
+    private final User bob = funded("Bob", 1000);
+    private final User carol = funded("Carol", 1000);
+    private final User zoe = funded("Zoe", 1000);
 
     private static Order buy(User user, long quantity, double price, long sequence) {
         return new Order(sequence, user, OrderSide.BUY, quantity, price);

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static gm.engine.TestUsers.funded;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -21,10 +22,10 @@ class OrderBookEventTest {
 
     private static final double TOLERANCE = 0.0001;
 
-    private final User marketMaker = new User("Avrum", 1000);
+    private final User marketMaker = funded("Avrum", 1000);
 
     private OrderBookEvent event(int initial, int baseValue, boolean allowMint) {
-        OrderBookEvent event = new OrderBookEvent(2, "World Cap Winner", "Who wins?",
+        OrderBookEvent event = new OrderBookEvent("World Cap Winner", "Who wins?",
                 new Commission(15, CommissionType.ON_CLOSE), List.of("Argentina", "Spain"),
                 initial, baseValue, allowMint);
         event.assignMarketMaker(marketMaker);

@@ -1,199 +1,265 @@
 package gm.engine.impl;
 
+import gm.dto.EventInfoDto;
+import gm.dto.LedgerDto;
+import gm.dto.LedgerLineDto;
+import gm.dto.MarketStateDto;
+import gm.dto.OptionHoldingDto;
+import gm.dto.OptionMarketDto;
+import gm.dto.OptionStateDto;
+import gm.dto.OrderBookStateDto;
+import gm.dto.OrderDto;
+import gm.dto.ParticipantDto;
+import gm.dto.ParticipationDto;
+import gm.dto.PurchaseResultDto;
+import gm.dto.TradeDto;
+import gm.dto.UploadResultDto;
+import gm.dto.UserDetailDto;
+import gm.dto.UserDto;
 import gm.engine.api.GuessMarketEngine;
 import gm.engine.api.InvalidSelectionException;
-import gm.engine.api.NoFileLoadedException;
-import gm.engine.api.dto.BalanceHistoryDto;
-import gm.engine.api.dto.BalancePointDto;
-import gm.engine.api.dto.EventInfoDto;
-import gm.engine.api.dto.LoadResultDto;
-import gm.engine.api.dto.MarketStateDto;
-import gm.engine.api.dto.NewEventDto;
-import gm.engine.api.dto.NewLmsrDto;
-import gm.engine.api.dto.NewMethodDto;
-import gm.engine.api.dto.NewOrderBookDto;
-import gm.engine.api.dto.OptionHoldingDto;
-import gm.engine.api.dto.OptionMarketDto;
-import gm.engine.api.dto.OptionStateDto;
-import gm.engine.api.dto.OrderBookStateDto;
-import gm.engine.api.dto.OrderDto;
-import gm.engine.api.dto.ParticipantDto;
-import gm.engine.api.dto.ParticipationDto;
-import gm.engine.api.dto.PriceHistoryDto;
-import gm.engine.api.dto.PricePointDto;
-import gm.engine.api.dto.PurchaseResultDto;
-import gm.engine.api.dto.UserDetailDto;
-import gm.engine.api.dto.UserDto;
-import gm.engine.api.dto.TradeDto;
 import gm.engine.model.Commission;
+import gm.engine.model.CommissionType;
 import gm.engine.model.Event;
+import gm.engine.model.EventOption;
 import gm.engine.model.Holding;
 import gm.engine.model.LmsrEvent;
+import gm.engine.model.Market;
 import gm.engine.model.OrderBookEvent;
+import gm.engine.model.Trade;
+import gm.engine.model.User;
 import gm.engine.model.orderbook.Order;
 import gm.engine.model.orderbook.OrderBook;
 import gm.engine.model.orderbook.OrderSide;
-import gm.engine.model.User;
-import gm.engine.model.EventOption;
-import gm.engine.model.SystemState;
-import gm.engine.model.Commission;
-import gm.engine.model.CommissionType;
-import gm.engine.model.Trade;
-import gm.engine.persistence.StateSerializer;
 import gm.engine.xml.EventsFileLoader;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalDouble;
-import java.util.function.Predicate;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Supplier;
 
 /**
- * The working engine. It holds the loaded system, checks every selection that comes in, and hands
- * back plain data objects that a user interface can display without knowing anything about the model.
+ * The working engine. It holds the market, checks every selection that comes in, and hands back plain
+ * data objects that travel to a client without anything of the model attached.
  * <p>
- * Loading is deliberately arranged so that a faulty file cannot disturb what is already loaded: the
- * new state is built completely first, and only a state that was built without complaint replaces the
- * old one.
+ * The server calls it from many threads at once. One read-write lock guards the whole market: any
+ * number of questions may be answered together, while a change waits for them to finish and then has
+ * the market to itself. A finer grained scheme would buy nothing here — every change is a few
+ * arithmetic steps — and would be far easier to get wrong. Every answer is built completely while the
+ * lock is held, so what leaves the engine is a consistent picture of one moment, never half of one
+ * trade.
+ * <p>
+ * A faulty upload cannot disturb the market: the file is read in full first, and its events join only
+ * if the whole file was sound.
  */
 public final class GuessMarketEngineImpl implements GuessMarketEngine {
 
     private final EventsFileLoader fileLoader = new EventsFileLoader();
-    private final StateSerializer serializer = new StateSerializer();
-
-    private SystemState state;
-
-    @Override
-    public LoadResultDto loadEventsFile(String path) {
-        SystemState loaded = fileLoader.load(path);
-        state = loaded;
-        return new LoadResultDto(path == null ? "" : path.trim(), loaded.eventCount(),
-                loaded.costOfOpeningEverything());
-    }
+    private final Market market = new Market();
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     @Override
-    public boolean isLoaded() {
-        return state != null;
-    }
-
-    @Override
-    public List<EventInfoDto> listEvents() {
-        return eventsMatching(event -> true);
-    }
-
-    @Override
-    public List<EventInfoDto> listOpenEvents() {
-        return eventsMatching(Event::isOpen);
-    }
-
-    @Override
-    public MarketStateDto marketState(int eventNumber) {
-        return stateOf(eventAt(eventNumber), eventNumber);
-    }
-
-    @Override
-    public int createEvent(int creatorNumber, NewEventDto details) {
-        User creator = userAt(creatorNumber);
-        if (details == null) {
-            throw new InvalidSelectionException("There are no details to make an event from.");
+    public UserDetailDto enterMarket(String userName) {
+        if (userName == null || userName.isBlank()) {
+            throw new InvalidSelectionException("A user needs a name.");
         }
-        String name = trimmed(details.name());
-        if (name.isEmpty()) {
-            throw new InvalidSelectionException("An event needs a name.");
-        }
-        List<String> optionNames = new ArrayList<>();
-        for (String optionName : details.optionNames()) {
-            String trimmedOption = trimmed(optionName);
-            if (trimmedOption.isEmpty()) {
-                throw new InvalidSelectionException(
-                        "Every outcome needs a name, or nobody could choose it.");
-            }
-            if (optionNames.stream().anyMatch(already -> already.equalsIgnoreCase(trimmedOption))) {
-                throw new InvalidSelectionException("Two of the outcomes are both called \""
-                        + trimmedOption + "\". They must differ, otherwise there is nothing to"
-                        + " choose between. The events file is held to the same rule.");
-            }
-            optionNames.add(trimmedOption);
-        }
-
-        List<Event> events = new ArrayList<>(currentState().events());
-        Event created = asSelectionFailure(() -> build(nextFreeId(events), name, details, optionNames));
-        created.assignMarketMaker(creator);
-        events.add(created);
-        state = new SystemState(events, currentState().users());
-        return events.size();
-    }
-
-    /**
-     * Builds the event itself. Every rule about what makes a sound event already lives in the model
-     * constructors, so this asks them rather than repeating them and risking the two disagreeing.
-     */
-    private Event build(int id, String name, NewEventDto details, List<String> optionNames) {
-        CommissionType timing = CommissionType.fromFileValue(details.commissionTiming())
-                .orElseThrow(() -> new IllegalArgumentException("\"" + details.commissionTiming()
-                        + "\" is not a moment a commission can be charged. It must be \""
-                        + CommissionType.ON_PURCHASE.fileValue() + "\" or \""
-                        + CommissionType.ON_CLOSE.fileValue() + "\"."));
-        Commission commission = new Commission(details.commissionPercent(), timing);
-        String description = trimmed(details.description());
-
-        NewMethodDto method = details.method();
-        if (method instanceof NewLmsrDto lmsr) {
-            return new LmsrEvent(id, name, description, commission, optionNames, lmsr.liquidity());
-        }
-        if (method instanceof NewOrderBookDto book) {
-            return new OrderBookEvent(id, name, description, commission, optionNames,
-                    book.initialInvestment(), book.baseValue(), book.allowMint());
-        }
-        throw new IllegalArgumentException("An event has to be traded somehow, and no method was given.");
-    }
-
-    /** One past the highest id in use, so a created event cannot collide with a loaded one. */
-    private int nextFreeId(List<Event> events) {
-        return events.stream().mapToInt(Event::id).max().orElse(0) + 1;
-    }
-
-    private static String trimmed(String text) {
-        return text == null ? "" : text.trim();
-    }
-
-    @Override
-    public PriceHistoryDto priceHistory(int eventNumber) {
-        Event event = eventAt(eventNumber);
-        List<PricePointDto> points = new ArrayList<>();
-        for (Event.PriceSample sample : event.priceHistory()) {
-            points.add(new PricePointDto(sample.step(), sample.pricePerOption()));
-        }
-        List<String> optionNames = new ArrayList<>();
-        event.options().forEach(option -> optionNames.add(option.name()));
-        return new PriceHistoryDto(event.name(), optionNames, points);
-    }
-
-    @Override
-    public BalanceHistoryDto balanceHistory(int userNumber) {
-        User user = userAt(userNumber);
-        List<BalancePointDto> points = new ArrayList<>();
-        for (User.BalanceSample sample : user.balanceHistory()) {
-            points.add(new BalancePointDto(sample.step(), sample.balance()));
-        }
-        return new BalanceHistoryDto(user.name(), points);
+        return changing(() -> detailOf(market.enter(userName)));
     }
 
     @Override
     public List<UserDto> listUsers() {
-        List<User> users = currentState().users();
-        List<UserDto> summaries = new ArrayList<>();
-        for (int i = 0; i < users.size(); i++) {
-            summaries.add(summaryOf(users.get(i), i + 1));
-        }
-        return List.copyOf(summaries);
+        return reading(() -> market.users().stream()
+                .map(user -> new UserDto(user.name(), user.account().balance(), user.isBlocked(),
+                        runsAnything(user)))
+                .toList());
     }
 
     @Override
-    public UserDetailDto userDetail(int userNumber) {
-        User user = userAt(userNumber);
+    public UserDetailDto userDetail(String userName) {
+        return reading(() -> detailOf(userNamed(userName)));
+    }
+
+    @Override
+    public LedgerDto ledger(String userName, int after) {
+        if (after < 0) {
+            throw new InvalidSelectionException("The number of lines already held cannot be negative,"
+                    + " but it is " + after + ".");
+        }
+        return reading(() -> {
+            List<User.LedgerLine> lines = userNamed(userName).ledger();
+            List<LedgerLineDto> fresh = new ArrayList<>();
+            for (int i = after; i < lines.size(); i++) {
+                User.LedgerLine line = lines.get(i);
+                fresh.add(new LedgerLineDto(line.number(), line.description(), line.amount(),
+                        line.balanceAfter()));
+            }
+            return new LedgerDto(after, List.copyOf(fresh));
+        });
+    }
+
+    @Override
+    public UserDetailDto deposit(String userName, double amount) {
+        return changing(() -> {
+            User user = userNamed(userName);
+            asSelectionFailure(() -> user.deposit(amount));
+            return detailOf(user);
+        });
+    }
+
+    @Override
+    public UploadResultDto uploadEvents(String uploaderName, String fileName, InputStream content) {
+        return changing(() -> {
+            User uploader = userNamed(uploaderName);
+            List<Event> arriving = fileLoader.read(fileName, content, market::hasEventNamed);
+            arriving.forEach(event -> event.assignMarketMaker(uploader));
+            market.addEvents(arriving);
+            return new UploadResultDto(fileName.trim(), arriving.stream().map(Event::name).toList());
+        });
+    }
+
+    @Override
+    public List<EventInfoDto> listEvents() {
+        return reading(() -> {
+            List<Event> events = market.events();
+            List<EventInfoDto> infos = new ArrayList<>(events.size());
+            for (int i = 0; i < events.size(); i++) {
+                infos.add(infoOf(events.get(i), i + 1));
+            }
+            return List.copyOf(infos);
+        });
+    }
+
+    @Override
+    public MarketStateDto marketState(int eventNumber) {
+        return reading(() -> stateOf(lmsrEventAt(eventNumber), eventNumber));
+    }
+
+    @Override
+    public OrderBookStateDto orderBookState(int eventNumber) {
+        return reading(() -> {
+            OrderBookEvent event = orderBookEventAt(eventNumber);
+            List<OptionMarketDto> markets = new ArrayList<>();
+            for (int i = 0; i < event.options().size(); i++) {
+                markets.add(marketOf(event, i));
+            }
+            List<ParticipantDto> participants = new ArrayList<>();
+            for (User user : event.participants()) {
+                participants.add(new ParticipantDto(user.name(), holdingsOf(event, user), user.isBlocked()));
+            }
+            return new OrderBookStateDto(infoOf(event, eventNumber), List.copyOf(markets),
+                    event.account().balance(), event.commissionCollected(), List.copyOf(participants),
+                    event.baseValue(), event.allowsMint(), event.highestAllowedPrice());
+        });
+    }
+
+    @Override
+    public EventInfoDto openEvent(int eventNumber, String userName) {
+        return changing(() -> {
+            Event event = eventAt(eventNumber);
+            User actor = userNamed(userName);
+            asSelectionFailure(() -> event.open(actor));
+            return infoOf(event, eventNumber);
+        });
+    }
+
+    @Override
+    public EventInfoDto closeEvent(int eventNumber, String userName, int winningOptionNumber) {
+        return changing(() -> {
+            Event event = eventAt(eventNumber);
+            User actor = userNamed(userName);
+            int optionIndex = optionIndexIn(event, winningOptionNumber);
+            asSelectionFailure(() -> event.close(actor, optionIndex));
+            return infoOf(event, eventNumber);
+        });
+    }
+
+    @Override
+    public PurchaseResultDto buyShares(int eventNumber, String userName, int optionNumber, long quantity) {
+        return changing(() -> {
+            LmsrEvent event = lmsrEventAt(eventNumber);
+            User buyer = userNamed(userName);
+            int optionIndex = optionIndexIn(event, optionNumber);
+            Trade trade = asSelectionFailure(() -> event.buy(buyer, optionIndex, quantity));
+            return receiptFor(trade, event, eventNumber);
+        });
+    }
+
+    @Override
+    public PurchaseResultDto sellShares(int eventNumber, String userName, int optionNumber, long quantity) {
+        return changing(() -> {
+            LmsrEvent event = lmsrEventAt(eventNumber);
+            User seller = userNamed(userName);
+            int optionIndex = optionIndexIn(event, optionNumber);
+            Trade trade = asSelectionFailure(() -> event.sell(seller, optionIndex, quantity));
+            return receiptFor(trade, event, eventNumber);
+        });
+    }
+
+    @Override
+    public List<TradeDto> submitOrder(int eventNumber, String userName, int optionNumber, OrderSide side,
+                                      long quantity, double price) {
+        if (side == null) {
+            throw new InvalidSelectionException("An order must say whether it buys or sells.");
+        }
+        return changing(() -> {
+            OrderBookEvent event = orderBookEventAt(eventNumber);
+            User trader = userNamed(userName);
+            int optionIndex = optionIndexIn(event, optionNumber);
+            List<Trade> trades = asSelectionFailure(
+                    () -> event.submitOrder(trader, optionIndex, side, quantity, price));
+            return trades.stream().map(GuessMarketEngineImpl::asDto).toList();
+        });
+    }
+
+    private <T> T reading(Supplier<T> question) {
+        return holding(lock.readLock(), question);
+    }
+
+    private <T> T changing(Supplier<T> command) {
+        return holding(lock.writeLock(), command);
+    }
+
+    private static <T> T holding(Lock held, Supplier<T> work) {
+        held.lock();
+        try {
+            return work.get();
+        } finally {
+            held.unlock();
+        }
+    }
+
+    /**
+     * Turns a refusal from the model into one the caller was told to expect. The model throws plain
+     * state and argument failures because it knows nothing of who is calling; this interface promises
+     * a single family of failures, each already carrying a message fit to show.
+     */
+    private static void asSelectionFailure(Runnable action) {
+        asSelectionFailure(() -> {
+            action.run();
+            return null;
+        });
+    }
+
+    private static <T> T asSelectionFailure(Supplier<T> action) {
+        try {
+            return action.get();
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            throw new InvalidSelectionException(e.getMessage());
+        }
+    }
+
+    private boolean runsAnything(User user) {
+        return market.events().stream().anyMatch(event -> event.marketMaker() == user);
+    }
+
+    private UserDetailDto detailOf(User user) {
         List<String> runs = new ArrayList<>();
         List<ParticipationDto> participations = new ArrayList<>();
-        List<Event> events = currentState().events();
+        List<Event> events = market.events();
         for (int i = 0; i < events.size(); i++) {
             Event event = events.get(i);
             if (event.marketMaker() == user) {
@@ -203,126 +269,27 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
                 participations.add(participationOf(event, i + 1, user));
             }
         }
-        return new UserDetailDto(userNumber, user.name(), user.account().balance(), user.isBlocked(),
+        return new UserDetailDto(user.name(), user.account().balance(), user.isBlocked(),
                 List.copyOf(runs), List.copyOf(participations));
     }
 
-    @Override
-    public EventInfoDto openEvent(int eventNumber, int userNumber) {
-        Event event = eventAt(eventNumber);
-        User actor = userAt(userNumber);
-        asSelectionFailure(() -> event.open(actor));
-        return infoOf(event, eventNumber);
-    }
-
-    @Override
-    public PurchaseResultDto buyShares(int eventNumber, int userNumber, int optionNumber, long quantity) {
-        LmsrEvent event = lmsrEventAt(eventNumber);
-        User buyer = userAt(userNumber);
-        int optionIndex = optionIndexIn(event, optionNumber);
-        Trade trade = asSelectionFailure(() -> event.buy(buyer, optionIndex, quantity));
-        return receiptFor(trade, event, eventNumber);
-    }
-
-    @Override
-    public PurchaseResultDto sellShares(int eventNumber, int userNumber, int optionNumber, long quantity) {
-        LmsrEvent event = lmsrEventAt(eventNumber);
-        User seller = userAt(userNumber);
-        int optionIndex = optionIndexIn(event, optionNumber);
-        Trade trade = asSelectionFailure(() -> event.sell(seller, optionIndex, quantity));
-        return receiptFor(trade, event, eventNumber);
-    }
-
-    @Override
-    public OrderBookStateDto orderBookState(int eventNumber) {
-        OrderBookEvent event = orderBookEventAt(eventNumber);
-        List<OptionMarketDto> markets = new ArrayList<>();
-        for (int i = 0; i < event.options().size(); i++) {
-            markets.add(marketOf(event, i));
-        }
-        List<ParticipantDto> participants = new ArrayList<>();
-        for (User user : event.participants()) {
-            participants.add(participantOf(event, user));
-        }
-        return new OrderBookStateDto(infoOf(event, eventNumber), List.copyOf(markets),
-                event.account().balance(), event.commissionCollected(), List.copyOf(participants),
-                event.baseValue(), event.allowsMint(), event.highestAllowedPrice());
-    }
-
-    @Override
-    public List<TradeDto> submitOrder(int eventNumber, int userNumber, int optionNumber, OrderSide side,
-                                      long quantity, double price) {
-        OrderBookEvent event = orderBookEventAt(eventNumber);
-        User trader = userAt(userNumber);
-        int optionIndex = optionIndexIn(event, optionNumber);
-        List<Trade> trades = asSelectionFailure(
-                () -> event.submitOrder(trader, optionIndex, side, quantity, price));
-        return trades.stream().map(GuessMarketEngineImpl::asDto).toList();
-    }
-
-    @Override
-    public MarketStateDto closeEvent(int eventNumber, int userNumber, int winningOptionNumber) {
-        Event event = eventAt(eventNumber);
-        User actor = userAt(userNumber);
-        int optionIndex = optionIndexIn(event, winningOptionNumber);
-        asSelectionFailure(() -> event.close(actor, optionIndex));
-        return stateOf(event, eventNumber);
-    }
-
-    @Override
-    public String saveState(String pathWithoutExtension) {
-        return serializer.save(currentState(), pathWithoutExtension);
-    }
-
-    @Override
-    public void loadState(String pathWithoutExtension) {
-        state = serializer.load(pathWithoutExtension);
-    }
-
-    private SystemState currentState() {
-        if (state == null) {
-            throw new NoFileLoadedException();
-        }
-        return state;
-    }
-
-    /**
-     * Turns a refusal from the model into one the caller was told to expect. The model throws plain
-     * state and argument failures because it knows nothing of who is calling; this interface promises
-     * a single family of failures, each already carrying a message fit to show.
-     */
-    private void asSelectionFailure(Runnable action) {
-        try {
-            action.run();
-        } catch (IllegalStateException | IllegalArgumentException e) {
-            throw new InvalidSelectionException(e.getMessage());
-        }
-    }
-
-    private <T> T asSelectionFailure(java.util.function.Supplier<T> action) {
-        try {
-            return action.get();
-        } catch (IllegalStateException | IllegalArgumentException e) {
-            throw new InvalidSelectionException(e.getMessage());
-        }
-    }
-
-    private UserDto summaryOf(User user, int userNumber) {
-        return new UserDto(userNumber, user.name(), user.account().balance(), user.isBlocked());
-    }
-
     private ParticipationDto participationOf(Event event, int eventNumber, User user) {
+        Holding holding = event.holdingOf(user);
+        List<Trade> theirs = event.history().stream()
+                .filter(trade -> trade.userName().equals(user.name()))
+                .toList();
+        return new ParticipationDto(infoOf(event, eventNumber), holdingsOf(event, user),
+                holding.commissionPaid(), holding.netResult(), newestFirst(theirs));
+    }
+
+    private List<OptionHoldingDto> holdingsOf(Event event, User user) {
         Holding holding = event.holdingOf(user);
         List<OptionHoldingDto> options = new ArrayList<>();
         for (int i = 0; i < event.options().size(); i++) {
             options.add(new OptionHoldingDto(i + 1, event.options().get(i).name(),
                     holding.shares(i), holding.paidFor(i), worthOf(event, i, holding.shares(i))));
         }
-        List<Trade> theirs = event.history().stream()
-                .filter(trade -> trade.userName().equals(user.name()))
-                .toList();
-        return new ParticipationDto(infoOf(event, eventNumber), List.copyOf(options),
-                holding.commissionPaid(), holding.netResult(), newestFirst(theirs));
+        return List.copyOf(options);
     }
 
     private PurchaseResultDto receiptFor(Trade trade, LmsrEvent event, int eventNumber) {
@@ -340,22 +307,12 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
                 event.options().get(optionIndex).sharesBought());
     }
 
-    private ParticipantDto participantOf(Event event, User user) {
-        Holding holding = event.holdingOf(user);
-        List<OptionHoldingDto> options = new ArrayList<>();
-        for (int i = 0; i < event.options().size(); i++) {
-            options.add(new OptionHoldingDto(i + 1, event.options().get(i).name(),
-                    holding.shares(i), holding.paidFor(i), worthOf(event, i, holding.shares(i))));
-        }
-        return new ParticipantDto(user.name(), List.copyOf(options), user.isBlocked());
-    }
-
     /**
      * What a holding is worth at the market's present reckoning: the formula's value for an LMSR
      * event, and the last price two people actually agreed on for an order book. An option nobody
      * has traded has no price at all, and the answer is then nothing rather than nought.
      */
-    private Double worthOf(Event event, int optionIndex, long shares) {
+    private static Double worthOf(Event event, int optionIndex, long shares) {
         if (event instanceof LmsrEvent lmsr) {
             return shares * lmsr.valueOf(optionIndex);
         }
@@ -374,7 +331,7 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
     }
 
     /** A price the book cannot supply is absent, not nought, and reaches the caller as null. */
-    private static Double orNull(java.util.OptionalDouble value) {
+    private static Double orNull(OptionalDouble value) {
         return value.isPresent() ? value.getAsDouble() : null;
     }
 
@@ -383,22 +340,24 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
                 trade.commission(), trade.totalPaid());
     }
 
-    private OrderBookEvent orderBookEventAt(int eventNumber) {
-        Event event = eventAt(eventNumber);
-        if (!(event instanceof OrderBookEvent book)) {
-            throw new InvalidSelectionException("\"" + event.name() + "\" is priced by a formula rather"
-                    + " than by an order book, so it has no books to show.");
+    private User userNamed(String userName) {
+        if (userName == null || userName.isBlank()) {
+            throw new InvalidSelectionException("No user was named.");
         }
-        return book;
+        return market.user(userName).orElseThrow(() -> new InvalidSelectionException(
+                "There is no user called \"" + userName.trim() + "\". A user comes into being by logging in."));
     }
 
-    private User userAt(int userNumber) {
-        List<User> users = currentState().users();
-        if (userNumber < 1 || userNumber > users.size()) {
-            throw new InvalidSelectionException("There is no user number " + userNumber + "."
-                    + " Please choose a number between 1 and " + users.size() + ".");
+    private Event eventAt(int eventNumber) {
+        List<Event> events = market.events();
+        if (events.isEmpty()) {
+            throw new InvalidSelectionException("There are no events yet. Upload an events file first.");
         }
-        return users.get(userNumber - 1);
+        if (eventNumber < 1 || eventNumber > events.size()) {
+            throw new InvalidSelectionException("There is no event number " + eventNumber + "."
+                    + " Please choose a number between 1 and " + events.size() + ".");
+        }
+        return events.get(eventNumber - 1);
     }
 
     private LmsrEvent lmsrEventAt(int eventNumber) {
@@ -410,7 +369,16 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
         return lmsr;
     }
 
-    private int optionIndexIn(Event event, int optionNumber) {
+    private OrderBookEvent orderBookEventAt(int eventNumber) {
+        Event event = eventAt(eventNumber);
+        if (!(event instanceof OrderBookEvent book)) {
+            throw new InvalidSelectionException("\"" + event.name() + "\" is priced by a formula rather"
+                    + " than by an order book, so it has no books to show.");
+        }
+        return book;
+    }
+
+    private static int optionIndexIn(Event event, int optionNumber) {
         int optionCount = event.options().size();
         if (optionNumber < 1 || optionNumber > optionCount) {
             throw new InvalidSelectionException("The event \"" + event.name() + "\" has no option number "
@@ -419,29 +387,9 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
         return optionNumber - 1;
     }
 
-    private Event eventAt(int eventNumber) {
-        List<Event> events = currentState().events();
-        if (eventNumber < 1 || eventNumber > events.size()) {
-            throw new InvalidSelectionException("There is no event number " + eventNumber + "."
-                    + " Please choose a number between 1 and " + events.size() + ".");
-        }
-        return events.get(eventNumber - 1);
-    }
-
-    private List<EventInfoDto> eventsMatching(Predicate<Event> filter) {
-        List<Event> events = currentState().events();
-        List<EventInfoDto> matching = new ArrayList<>();
-        for (int i = 0; i < events.size(); i++) {
-            if (filter.test(events.get(i))) {
-                matching.add(infoOf(events.get(i), i + 1));
-            }
-        }
-        return List.copyOf(matching);
-    }
-
-    private EventInfoDto infoOf(Event event, int eventNumber) {
+    private static EventInfoDto infoOf(Event event, int eventNumber) {
         Commission commission = event.commission();
-        return new EventInfoDto(eventNumber, event.id(), event.name(), event.description(),
+        return new EventInfoDto(eventNumber, event.name(), event.description(),
                 commission.percent(), commission.type().fileValue(), commission.type().displayName(),
                 event.options().stream().map(EventOption::name).toList(),
                 event.status().displayName(), event.methodDescription(), event.methodKind(),
@@ -450,15 +398,11 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
                 event.winningOption() == null ? null : event.winningOption().name());
     }
 
-    private MarketStateDto stateOf(Event event, int eventNumber) {
-        if (!(event instanceof LmsrEvent lmsr)) {
-            throw new InvalidSelectionException("\"" + event.name() + "\" is traded through an order book,"
-                    + " which is described by its own view rather than by a single value per option.");
-        }
+    private static MarketStateDto stateOf(LmsrEvent event, int eventNumber) {
         List<OptionStateDto> options = new ArrayList<>();
         for (int i = 0; i < event.options().size(); i++) {
             EventOption option = event.options().get(i);
-            options.add(new OptionStateDto(i + 1, option.name(), lmsr.valueOf(i), option.sharesBought()));
+            options.add(new OptionStateDto(i + 1, option.name(), event.valueOf(i), option.sharesBought()));
         }
         EventOption winner = event.winningOption();
         return new MarketStateDto(infoOf(event, eventNumber), List.copyOf(options),
@@ -470,12 +414,10 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
                 event.totalPaidOut(), event.payoutPerWinningShare());
     }
 
-    private List<TradeDto> newestFirst(List<Trade> history) {
+    private static List<TradeDto> newestFirst(List<Trade> history) {
         List<TradeDto> newestFirst = new ArrayList<>();
         for (int i = history.size() - 1; i >= 0; i--) {
-            Trade trade = history.get(i);
-            newestFirst.add(new TradeDto(trade.optionName(), trade.quantity(), trade.sharesCost(),
-                    trade.commission(), trade.totalPaid()));
+            newestFirst.add(asDto(history.get(i)));
         }
         return List.copyOf(newestFirst);
     }

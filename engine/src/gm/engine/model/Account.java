@@ -1,18 +1,13 @@
 package gm.engine.model;
 
-import java.io.Serializable;
-
 /**
- * A balance of money. One class serves the event accounts and the market maker account, and will
- * serve user accounts once the system supports more than one user.
+ * A balance of money. One class serves every account in the market: each person's and each event's.
  * <p>
- * Withdrawals are deliberately allowed to take the balance below zero: the market maker pays the
- * subsidy of every event out of an account that starts empty, so a negative balance is the normal
- * way of saying "this is what the market maker has invested so far".
+ * Withdrawals are deliberately allowed to take the balance below zero. The exercise lets a person
+ * overspend once, and blocks them for it rather than refusing the action; that rule belongs to
+ * {@link User}, which is why the account itself only keeps the arithmetic.
  */
-public final class Account implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public final class Account {
 
     private double balance;
 
@@ -30,11 +25,6 @@ public final class Account implements Serializable {
         balance -= amount;
     }
 
-    /** Moves everything this account holds into {@code target}, leaving this one empty. */
-    public void drainInto(Account target) {
-        target.deposit(balance);
-        balance = 0;
-    }
 
     private static void requireNotNegative(double amount, String action) {
         if (amount < 0) {

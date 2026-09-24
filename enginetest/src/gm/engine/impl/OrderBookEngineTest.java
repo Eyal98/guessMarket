@@ -1,12 +1,12 @@
 package gm.engine.impl;
 
+import gm.dto.OptionMarketDto;
+import gm.dto.OrderBookStateDto;
+import gm.dto.ParticipantDto;
+import gm.dto.TradeDto;
 import gm.engine.TestFiles;
 import gm.engine.api.GuessMarketEngine;
 import gm.engine.api.InvalidSelectionException;
-import gm.engine.api.dto.OptionMarketDto;
-import gm.engine.api.dto.OrderBookStateDto;
-import gm.engine.api.dto.ParticipantDto;
-import gm.engine.api.dto.TradeDto;
 import gm.engine.model.orderbook.OrderSide;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,23 +23,27 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The order book as the screen will see it: both books, what they say about price, and where each
  * participant stands.
  * <p>
- * Event 2 of the official small.xml is the order book: base value 1, an initial stock of 100, minting
- * allowed, and Avrum running it.
+ * Event 2 of the official exercise 3 multiple.xml is the order book with minting: base value 1, an
+ * initial stock of 100, and a commission charged only at closing. Avrum uploads the file, so he runs it.
  */
 class OrderBookEngineTest {
 
     private static final double TOLERANCE = 0.0001;
-    private static final int MUJTABA = 1;
     private static final int WORLD_CUP = 2;
+    private static final int RAIN = 3;
     private static final int ARGENTINA = 1;
     private static final int SPAIN = 2;
-    private static final int AVRUM = 1;
-    private static final int TIKVA = 2;
+    private static final String AVRUM = "Avrum";
+    private static final String TIKVA = "Tikva";
 
     private final GuessMarketEngine engine = new GuessMarketEngineImpl();
 
     private GuessMarketEngine openMarket() {
-        engine.loadEventsFile(TestFiles.path("ex2/small.xml"));
+        engine.enterMarket(AVRUM);
+        engine.enterMarket(TIKVA);
+        engine.deposit(AVRUM, 10_000);
+        engine.deposit(TIKVA, 10_000);
+        engine.uploadEvents(AVRUM, "multiple.xml", TestFiles.open("ex3/multiple.xml"));
         engine.openEvent(WORLD_CUP, AVRUM);
         return engine;
     }
@@ -125,7 +129,7 @@ class OrderBookEngineTest {
     }
 
     @Test
-    @DisplayName("A mint between opposing buyers comes back as both halves")
+    @DisplayName("A mint between opposing buyers comes back as both of their purchases")
     void amintComesBackAsBothHalves() {
         GuessMarketEngine market = openMarket();
         market.submitOrder(WORLD_CUP, TIKVA, SPAIN, OrderSide.BUY, 35, 0.42);
@@ -170,7 +174,7 @@ class OrderBookEngineTest {
     void anLmsrEventHasNoBooks() {
         GuessMarketEngine market = openMarket();
 
-        assertTrue(assertThrows(InvalidSelectionException.class, () -> market.orderBookState(MUJTABA))
+        assertTrue(assertThrows(InvalidSelectionException.class, () -> market.orderBookState(RAIN))
                 .getMessage().contains("formula"));
     }
 

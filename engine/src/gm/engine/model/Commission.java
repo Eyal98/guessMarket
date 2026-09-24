@@ -1,6 +1,5 @@
 package gm.engine.model;
 
-import java.io.Serializable;
 import java.util.Objects;
 
 /**
@@ -9,7 +8,7 @@ import java.util.Objects;
  * @param percent between {@value #MINIMUM_PERCENT} and {@value #MAXIMUM_PERCENT}
  * @param type    when the commission is taken
  */
-public record Commission(int percent, CommissionType type) implements Serializable {
+public record Commission(int percent, CommissionType type) {
 
     public static final int MINIMUM_PERCENT = 0;
     public static final int MAXIMUM_PERCENT = 90;

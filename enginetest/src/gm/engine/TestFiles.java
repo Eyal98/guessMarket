@@ -1,5 +1,9 @@
 package gm.engine;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -17,12 +21,19 @@ public final class TestFiles {
     }
 
     /** The full path of a sample file, whether or not it exists. */
-    public static String path(String fileName) {
-        return FOLDER.resolve(fileName).toAbsolutePath().toString();
+    public static Path path(String fileName) {
+        return FOLDER.resolve(fileName).toAbsolutePath();
     }
 
-    /** The folder itself, for the tests that check what happens when a folder is given as a file. */
-    public static String folder() {
-        return FOLDER.toAbsolutePath().toString();
+    /**
+     * The content of a sample file as a stream, which is how an uploaded file reaches the engine: the
+     * server never has a path to give it, only the bytes that arrived.
+     */
+    public static InputStream open(String fileName) {
+        try {
+            return Files.newInputStream(path(fileName));
+        } catch (IOException e) {
+            throw new UncheckedIOException("The test file " + fileName + " could not be opened.", e);
+        }
     }
 }

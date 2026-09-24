@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static gm.engine.TestUsers.funded;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -24,11 +25,11 @@ class EventTest {
     private static final double PURCHASE_COST = 62.0115;
     private static final double MARKET_MAKER_CASH = 10000.0;
 
-    private final User marketMaker = new User("Tikva", MARKET_MAKER_CASH);
-    private final User buyer = new User("Menash", 100000);
+    private final User marketMaker = funded("Tikva", MARKET_MAKER_CASH);
+    private final User buyer = funded("Menash", 100000);
 
     private LmsrEvent eventWith(Commission commission) {
-        LmsrEvent event = new LmsrEvent(3, "Earth Quake on Dead Sea", "Will there be an earth quake this year?",
+        LmsrEvent event = new LmsrEvent("Earth Quake on Dead Sea", "Will there be an earth quake this year?",
                 commission, List.of("Yes", "No"), 100);
         event.assignMarketMaker(marketMaker);
         return event;
@@ -182,10 +183,10 @@ class EventTest {
         Commission commission = new Commission(0, CommissionType.ON_CLOSE);
 
         assertThrows(NullPointerException.class,
-                () -> new LmsrEvent(1, null, "d", commission, List.of("Yes", "No"), 100));
+                () -> new LmsrEvent(null, "d", commission, List.of("Yes", "No"), 100));
         assertThrows(NullPointerException.class,
-                () -> new LmsrEvent(1, "n", "d", null, List.of("Yes", "No"), 100));
+                () -> new LmsrEvent("n", "d", null, List.of("Yes", "No"), 100));
         assertThrows(IllegalArgumentException.class,
-                () -> new LmsrEvent(1, "n", "d", commission, List.of("Yes"), 100));
+                () -> new LmsrEvent("n", "d", commission, List.of("Yes"), 100));
     }
 }

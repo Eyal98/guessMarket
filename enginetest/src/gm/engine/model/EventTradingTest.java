@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static gm.engine.TestUsers.funded;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -23,11 +24,11 @@ class EventTradingTest {
     private static final double SUBSIDY = 69.3147;
     private static final double COST_OF_100 = 62.0115;
 
-    private final User marketMaker = new User("Tikva", 10000);
-    private final User buyer = new User("Menash", 1000);
+    private final User marketMaker = funded("Tikva", 10000);
+    private final User buyer = funded("Menash", 1000);
 
     private LmsrEvent openedEvent(int percent, CommissionType type) {
-        LmsrEvent event = new LmsrEvent(1, "Mujtaba is Dead", "Is he?", new Commission(percent, type),
+        LmsrEvent event = new LmsrEvent("Mujtaba is Dead", "Is he?", new Commission(percent, type),
                 List.of("Hell Yea !", "No way !"), 100);
         event.assignMarketMaker(marketMaker);
         event.open(marketMaker);
@@ -97,7 +98,7 @@ class EventTradingTest {
     @DisplayName("A blocked user cannot start anything new")
     void aBlockedUserIsTurnedAway() {
         LmsrEvent event = openedEvent(0, CommissionType.ON_CLOSE);
-        User pauper = new User("Avrum", 5);
+        User pauper = funded("Avrum", 5);
         event.buy(pauper, 0, 100);
 
         assertTrue(pauper.isBlocked(), "the purchase should have taken this user past zero");
@@ -108,7 +109,7 @@ class EventTradingTest {
     @DisplayName("Closing pays each holder for their own shares")
     void closingPaysEachHolderTheirOwnShare() {
         LmsrEvent event = openedEvent(10, CommissionType.ON_CLOSE);
-        User other = new User("Avrum", 1000);
+        User other = funded("Avrum", 1000);
         event.buy(buyer, 0, 100);
         event.buy(other, 0, 50);
         double buyerBeforeClosing = buyer.account().balance();
@@ -144,7 +145,7 @@ class EventTradingTest {
     @DisplayName("Holders of the losing option are paid nothing")
     void losersGetNothing() {
         LmsrEvent event = openedEvent(0, CommissionType.ON_CLOSE);
-        User loser = new User("Avrum", 1000);
+        User loser = funded("Avrum", 1000);
         event.buy(buyer, 0, 100);
         event.buy(loser, 1, 40);
         double loserBeforeClosing = loser.account().balance();

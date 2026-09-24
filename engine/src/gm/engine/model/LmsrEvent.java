@@ -2,7 +2,6 @@ package gm.engine.model;
 
 import gm.engine.method.LmsrMethod;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -14,16 +13,14 @@ import java.util.List;
  */
 public final class LmsrEvent extends Event {
 
-    private static final long serialVersionUID = 1L;
-
     /** Every share of the winning option is worth this much when the event closes. */
     public static final double PAYOUT_PER_WINNING_SHARE = 1.0;
 
     private final LmsrMethod method;
 
-    public LmsrEvent(int id, String name, String description, Commission commission,
-                     List<String> optionNames, int liquidity) {
-        super(id, name, description, commission, optionNames);
+    public LmsrEvent(String name, String description, Commission commission, List<String> optionNames,
+                     int liquidity) {
+        super(name, description, commission, optionNames);
         this.method = new LmsrMethod(liquidity);
     }
 
@@ -35,6 +32,11 @@ public final class LmsrEvent extends Event {
     @Override
     public double openingCost() {
         return method.initialPot(options().size());
+    }
+
+    @Override
+    protected String openingPurpose() {
+        return "LMSR subsidy";
     }
 
     @Override
@@ -67,15 +69,6 @@ public final class LmsrEvent extends Event {
         return method.sellProceeds(sharesPerOption(), optionIndex, quantity);
     }
 
-    /** An LMSR event can always price every option, because the formula answers whatever it is asked. */
-    @Override
-    protected List<Double> currentPrices() {
-        List<Double> prices = new ArrayList<>(options().size());
-        for (int optionIndex = 0; optionIndex < options().size(); optionIndex++) {
-            prices.add(valueOf(optionIndex));
-        }
-        return prices;
-    }
 
     /**
      * Buys shares of one option for a user.
@@ -93,14 +86,14 @@ public final class LmsrEvent extends Event {
         double sharesCost = method.buyCost(sharesPerOption(), optionIndex, quantity);
         double fee = commission().purchaseFee(sharesCost);
 
-        buyer.pay(sharesCost + fee);
+        buyer.pay(sharesCost, "Bought " + sharesOf(quantity, optionIndex));
         account().deposit(sharesCost);
-        marketMaker().receive(fee);
+        chargeCommission(buyer, fee, "buying " + sharesOf(quantity, optionIndex));
         option.addShares(quantity);
         holdingFor(buyer).recordPurchase(optionIndex, quantity, sharesCost, fee);
 
         Trade trade = new Trade(buyer.name(), option.name(), quantity, sharesCost, fee);
-        recordTrade(trade, fee);
+        recordTrade(trade);
         return trade;
     }
 
@@ -124,12 +117,12 @@ public final class LmsrEvent extends Event {
         double proceeds = method.sellProceeds(sharesPerOption(), optionIndex, quantity);
 
         account().withdraw(proceeds);
-        seller.receive(proceeds);
+        seller.receive(proceeds, "Sold " + sharesOf(quantity, optionIndex) + " back to the event");
         option.removeShares(quantity);
         holding.recordSale(optionIndex, quantity, proceeds);
 
         Trade trade = new Trade(seller.name(), option.name(), -quantity, -proceeds, 0.0);
-        recordTrade(trade, 0.0);
+        recordTrade(trade);
         return trade;
     }
 }

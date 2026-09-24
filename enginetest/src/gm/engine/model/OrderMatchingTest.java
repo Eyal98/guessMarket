@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static gm.engine.TestUsers.funded;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -22,13 +23,13 @@ class OrderMatchingTest {
     private static final int YES = 0;
     private static final int NO = 1;
 
-    private final User zoe = new User("Zoe", 10000);
-    private final User bob = new User("Bob", 10000);
-    private final User carol = new User("Carol", 10000);
-    private final User alice = new User("Alice", 10000);
+    private final User zoe = funded("Zoe", 10000);
+    private final User bob = funded("Bob", 10000);
+    private final User carol = funded("Carol", 10000);
+    private final User alice = funded("Alice", 10000);
 
     private OrderBookEvent openMarket(int commissionPercent, boolean allowMint) {
-        OrderBookEvent event = new OrderBookEvent(1, "Will it rain?", "Tomorrow, in town.",
+        OrderBookEvent event = new OrderBookEvent("Will it rain?", "Tomorrow, in town.",
                 new Commission(commissionPercent, CommissionType.ON_PURCHASE),
                 List.of("Yes", "No"), 100, 1, allowMint);
         event.assignMarketMaker(zoe);

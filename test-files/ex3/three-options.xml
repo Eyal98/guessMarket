@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Events with more than two outcomes, one of each trading method. Exercise 3 names multi-option events
+  as one of its two goals, although its schema still says maxOccurs="2"; the readme explains the choice.
+-->
+<Guess-Market>
+    <GM-events>
+        <GM-event name="World Cup 2030">
+            <description>Which of the three will lift the cup?</description>
+            <commission type="on-purchase">2</commission>
+            <GM-options>
+                <GM-option>Argentina</GM-option>
+                <GM-option>Spain</GM-option>
+                <GM-option>Brazil</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b>100</b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+        <GM-event name="Election Day Turnout">
+            <description>What share of voters will turn out?</description>
+            <commission type="on-close">5</commission>
+            <GM-options>
+                <GM-option>Under 60%</GM-option>
+                <GM-option>60% to 70%</GM-option>
+                <GM-option>70% to 80%</GM-option>
+                <GM-option>Over 80%</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-order-book allow-mint="true" initial="100" d="1"/>
+            </GM-method>
+        </GM-event>
+    </GM-events>
+</Guess-Market>

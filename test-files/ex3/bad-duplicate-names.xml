@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Events are told apart by their names alone, and names are compared without regard to case. -->
+<Guess-Market>
+    <GM-events>
+        <GM-event name="Rain On Friday">
+            <description>Will it rain on Friday?</description>
+            <commission type="on-close">10</commission>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b>100</b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+        <GM-event name="rain on friday">
+            <description>The same question again, in other letters.</description>
+            <commission type="on-close">10</commission>
+            <GM-options>
+                <GM-option>Yes</GM-option>
+                <GM-option>No</GM-option>
+            </GM-options>
+            <GM-method>
+                <GM-LMSR><b>100</b></GM-LMSR>
+            </GM-method>
+        </GM-event>
+    </GM-events>
+</Guess-Market>

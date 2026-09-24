@@ -9,7 +9,7 @@ package gm.engine.model;
  */
 public enum EventStatus {
 
-    /** Loaded from the file but not yet opened by its market maker. No trading. */
+    /** Uploaded, but not yet opened by its market maker. No trading. */
     NOT_STARTED("Not started"),
 
     /** Opened by its market maker and trading. */

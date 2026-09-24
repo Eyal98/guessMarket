@@ -20,12 +20,13 @@ import java.util.OptionalInt;
 final class EventNodeReader {
 
     private static final String NAME_ATTRIBUTE = "name";
+    /** Exercise 1 and 2 numbered their events; exercise 3 tells them apart by name alone. */
     private static final String ID_ELEMENT = "id";
     private static final String DESCRIPTION_ELEMENT = "description";
     /**
-     * The exercise 2 schema spells it in full. Exercise 1's files and its schema table spelled it
-     * with a single "s", so both are accepted: it costs nothing and keeps every published file
-     * loadable.
+     * The schema spells it in full. Exercise 1's files and its schema table spelled it with a single
+     * "s", so both are accepted: it costs nothing, and the misspelling is not the file's author's
+     * fault.
      */
     private static final String COMMISSION_ELEMENT = "commission";
     private static final String LEGACY_COMMISSION_ELEMENT = "comision";
@@ -40,14 +41,10 @@ final class EventNodeReader {
     private static final String BASE_VALUE_ATTRIBUTE = "d";
     private static final String ALLOW_MINT_ATTRIBUTE = "allow-mint";
 
-    private static final int REQUIRED_OPTIONS = 2;
-
     private final XmlNode node;
     private final List<String> problems;
     private final String name;
     private final String label;
-
-    private OptionalInt id = OptionalInt.empty();
 
     EventNodeReader(XmlNode node, int position, List<String> problems) {
         this.node = node;
@@ -66,32 +63,32 @@ final class EventNodeReader {
     /** The event, or nothing at all if any part of it was faulty. */
     Optional<Event> read() {
         Optional<String> eventName = requiredName();
-        id = requiredId();
+        refuseAnId();
         Optional<String> description = requiredText(DESCRIPTION_ELEMENT);
         Optional<Commission> commission = requiredCommission();
         Optional<List<String>> optionNames = requiredOptions();
         Optional<MethodSpec> method = requiredMethod();
 
-        if (eventName.isEmpty() || id.isEmpty() || description.isEmpty()
+        if (eventName.isEmpty() || description.isEmpty()
                 || commission.isEmpty() || optionNames.isEmpty() || method.isEmpty()) {
             return Optional.empty();
         }
         return Optional.of(switch (method.get()) {
-            case LmsrSpec(int liquidity) -> new LmsrEvent(id.getAsInt(), eventName.get(),
-                    description.get(), commission.get(), optionNames.get(), liquidity);
+            case LmsrSpec(int liquidity) -> new LmsrEvent(eventName.get(), description.get(),
+                    commission.get(), optionNames.get(), liquidity);
             case OrderBookSpec(int initial, int baseValue, boolean allowMint) -> new OrderBookEvent(
-                    id.getAsInt(), eventName.get(), description.get(), commission.get(),
-                    optionNames.get(), initial, baseValue, allowMint);
+                    eventName.get(), description.get(), commission.get(), optionNames.get(), initial,
+                    baseValue, allowMint);
         });
     }
 
     /**
-     * The id this event declared, available after {@link #read()} even when the event as a whole was
-     * rejected. That lets clashing ids be reported alongside whatever else is wrong with the file,
+     * The name this event declared, available after {@link #read()} even when the event as a whole was
+     * rejected. That lets clashing names be reported alongside whatever else is wrong with the file,
      * rather than only surfacing once every other fault has been fixed.
      */
-    OptionalInt declaredId() {
-        return id;
+    String declaredName() {
+        return name;
     }
 
     String label() {
@@ -110,16 +107,15 @@ final class EventNodeReader {
         return Optional.of(name);
     }
 
-    private OptionalInt requiredId() {
-        Optional<String> text = requiredText(ID_ELEMENT);
-        if (text.isEmpty()) {
-            return OptionalInt.empty();
-        }
-        try {
-            return OptionalInt.of(Integer.parseInt(text.get()));
-        } catch (NumberFormatException e) {
-            problems.add(label + ": its id is \"" + text.get() + "\", which is not a whole number.");
-            return OptionalInt.empty();
+    /**
+     * A numbered event is the mark of a file written for an earlier exercise. Taking the number
+     * silently would hide that the file is in the wrong format, so it is reported instead.
+     */
+    private void refuseAnId() {
+        if (node.child(ID_ELEMENT).isPresent()) {
+            problems.add(label + ": it has an <" + ID_ELEMENT + "> element. Events are no longer numbered;"
+                    + " each is known by its name alone, so this looks like a file written for an earlier"
+                    + " exercise.");
         }
     }
 
@@ -184,19 +180,24 @@ final class EventNodeReader {
         List<String> names = optionsNode.get().children(OPTION_ELEMENT).stream()
                 .map(option -> option.text().orElse(""))
                 .toList();
-        if (names.size() != REQUIRED_OPTIONS) {
-            problems.add(label + ": it has " + names.size() + " options, but every event must have exactly "
-                    + REQUIRED_OPTIONS + ".");
+        if (names.size() < Event.MINIMUM_OPTIONS) {
+            problems.add(label + ": it has " + names.size() + (names.size() == 1 ? " option" : " options")
+                    + ", but every event needs at least " + Event.MINIMUM_OPTIONS + ".");
             return Optional.empty();
         }
         if (names.stream().anyMatch(String::isBlank)) {
             problems.add(label + ": one of its options has no name.");
             return Optional.empty();
         }
-        if (names.get(0).equalsIgnoreCase(names.get(1))) {
-            problems.add(label + ": both of its options are called \"" + names.get(0)
-                    + "\". The two options must be different, otherwise there is nothing to choose between.");
-            return Optional.empty();
+        for (int later = 1; later < names.size(); later++) {
+            for (int earlier = 0; earlier < later; earlier++) {
+                if (names.get(earlier).equalsIgnoreCase(names.get(later))) {
+                    problems.add(label + ": two of its options, \"" + names.get(earlier) + "\" and \""
+                            + names.get(later) + "\", are the same option. Every option must differ from"
+                            + " the others, otherwise there is nothing to choose between them.");
+                    return Optional.empty();
+                }
+            }
         }
         return Optional.of(names);
     }
