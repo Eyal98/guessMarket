@@ -94,7 +94,7 @@ public abstract sealed class Event permits LmsrEvent, OrderBookEvent {
         double cost = openingCost();
         if (marketMaker.account().balance() < cost) {
             throw new IllegalStateException(marketMaker.name() + " cannot open \"" + name + "\": it costs "
-                    + amount(cost) + " and the account holds " + amount(marketMaker.account().balance())
+                    + money(cost) + " and the account holds " + money(marketMaker.account().balance())
                     + ". Load more funds first.");
         }
         marketMaker.pay(cost, "Opened \"" + name + "\" (" + openingPurpose() + ")");
@@ -324,6 +324,11 @@ public abstract sealed class Event permits LmsrEvent, OrderBookEvent {
     protected static String amount(double value) {
         BigDecimal rounded = BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP).stripTrailingZeros();
         return (rounded.scale() < 2 ? rounded.setScale(2, RoundingMode.UNNECESSARY) : rounded).toPlainString();
+    }
+
+    /** An amount of money as the screen shows it: two decimals, whatever the arithmetic left behind. */
+    protected static String money(double value) {
+        return String.format(Locale.US, "%.2f", value);
     }
 
     private void requireMarketMaker(User actor, String what) {

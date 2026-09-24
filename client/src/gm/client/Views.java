@@ -10,6 +10,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import javafx.scene.text.Text;
 
 import java.util.function.Function;
@@ -30,19 +31,25 @@ public final class Views {
         return label;
     }
 
-    /** Pairs of caption and value, laid out in two columns so they line up down the screen. */
+    /**
+     * Pairs of caption and value, laid out in two columns so they line up down the screen. A long
+     * value wraps under itself rather than being cut short when the window narrows.
+     */
     public static GridPane labelled(String... captionsAndValues) {
         GridPane grid = new GridPane();
         grid.setHgap(12);
         grid.setVgap(4);
         ColumnConstraints captions = new ColumnConstraints();
         captions.setMinWidth(150);
-        grid.getColumnConstraints().add(captions);
+        ColumnConstraints values = new ColumnConstraints();
+        values.setMinWidth(0);
+        values.setHgrow(Priority.ALWAYS);
+        grid.getColumnConstraints().addAll(captions, values);
         for (int i = 0; i + 1 < captionsAndValues.length; i += 2) {
             Label caption = new Label(captionsAndValues[i]);
             caption.getStyleClass().add("caption");
             grid.add(caption, 0, i / 2);
-            grid.add(new Label(captionsAndValues[i + 1]), 1, i / 2);
+            grid.add(wrapping(captionsAndValues[i + 1]), 1, i / 2);
         }
         return grid;
     }

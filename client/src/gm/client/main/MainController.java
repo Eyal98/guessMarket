@@ -70,16 +70,21 @@ public final class MainController implements Messenger {
             sessionEnded.run();
             return;
         }
+        warn("That could not be done", failure.message());
+    }
+
+    @Override
+    public void warn(String headline, String message) {
         Alert alert = new Alert(Alert.AlertType.WARNING);
         if (statusLabel.getScene() != null) {
             alert.initOwner(statusLabel.getScene().getWindow());
         }
         alert.setTitle("Guess Market");
-        alert.setHeaderText("That could not be done");
-        TextArea detail = new TextArea(failure.message());
+        alert.setHeaderText(headline);
+        TextArea detail = new TextArea(message);
         detail.setEditable(false);
         detail.setWrapText(true);
-        detail.setPrefRowCount(Math.min(14, failure.message().split("\n").length + 2));
+        detail.setPrefRowCount(Math.min(14, message.split("\n").length + 2));
         alert.getDialogPane().setContent(detail);
         alert.getDialogPane().setPrefWidth(640);
         alert.showAndWait();

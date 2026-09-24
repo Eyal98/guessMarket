@@ -86,7 +86,10 @@ public final class AccountController {
         root.setTop(uploadStrip());
         root.setCenter(body());
         feed.users().addListener((ignored, was, now) -> showOthers());
-        feed.me().addListener((ignored, was, now) -> showMe());
+        feed.me().addListener((ignored, was, now) -> {
+            showMe();
+            tellIfJustBlocked(was, now);
+        });
         feed.events().addListener((ignored, was, now) -> showMe());
         showOthers();
         showMe();
@@ -235,6 +238,19 @@ public final class AccountController {
             redrawing = false;
         }
         showPartIn(involvement.getSelectionModel().getSelectedItem());
+    }
+
+    /**
+     * The exercise lets an action take the balance below zero, and asks that the user be told when it
+     * does, since from that moment they can do nothing more. The panels change on their own; this makes
+     * sure the moment itself is not missed.
+     */
+    private void tellIfJustBlocked(UserDetailDto was, UserDetailDto now) {
+        if (was != null && now != null && !was.blocked() && now.blocked()) {
+            messenger.warn("Your balance has gone below zero",
+                    "Your balance is now " + Format.money(now.balance()) + ". What you did went through, but"
+                            + " from now on you can take no further part in the market.");
+        }
     }
 
     /**
