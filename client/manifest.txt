@@ -1,1 +1,1 @@
-Class-Path: engine.jar
+Class-Path: gm-dto.jar lib/gson-2.14.0.jar lib/okhttp-4.9.1.jar lib/okio-2.8.0.jar lib/kotlin-stdlib-1.4.10.jar lib/kotlin-stdlib-common-1.4.10.jar lib/annotations-13.0.jar

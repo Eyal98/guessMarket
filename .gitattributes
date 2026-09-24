@@ -1,0 +1,3 @@
+# Batch files must keep Windows line endings: cmd.exe can lose its place in a file with bare
+# line feeds, and a "call :label" then jumps somewhere it should not.
+*.bat text eol=crlf

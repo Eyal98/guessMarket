@@ -1,4 +1,4 @@
-package gm.ui.fx;
+package gm.client;
 
 import java.util.Locale;
 
@@ -27,6 +27,15 @@ public final class Format {
     public static String money(double amount) {
         double shown = Math.abs(amount) < ROUNDING_NOISE ? 0.0 : amount;
         return String.format(Locale.US, "%.2f", shown);
+    }
+
+    /**
+     * An amount that came in or went out, with its sign always shown: +5.80 for money received and
+     * -5.80 for money paid, so a column of account lines reads at a glance.
+     */
+    public static String signedMoney(double amount) {
+        String shown = money(amount);
+        return shown.startsWith("-") || shown.equals(money(0)) ? shown : "+" + shown;
     }
 
     /**

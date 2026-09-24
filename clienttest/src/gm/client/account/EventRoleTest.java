@@ -1,8 +1,7 @@
-package gm.ui.fx;
+package gm.client.account;
 
-import gm.engine.api.dto.EventInfoDto;
-import gm.engine.api.dto.ParticipationDto;
-import gm.ui.fx.UsersController.EventRole;
+import gm.dto.EventInfoDto;
+import gm.dto.ParticipationDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -11,19 +10,19 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * What a user's standing in one event is called.
+ * What the logged-in user's standing in one event is called on the account tab.
  * <p>
  * The fourth case is the one that matters most: somebody who has not taken part yet. Without a name
- * for it the event never appears beside that user, and there is then no way for them to place a
- * first order — which would leave only market makers and existing holders able to trade at all.
+ * for it the event never appears beside them, and there is then no way for them to place a first
+ * order — which would leave only market makers and existing holders able to trade at all.
  */
 @DisplayName("How a user's standing in an event is described")
 class EventRoleTest {
 
     private EventInfoDto event() {
-        return new EventInfoDto(1, 1, "World Cap Winner", "Who wins?", 15, "on-close",
+        return new EventInfoDto(1, "World Cap Winner", "Who wins?", 15, "on-close",
                 "charged from the winners when the event closes", List.of("Argentina", "Spain"),
-                "Active", "Order book", "Order book", "Avrum", 100.0, null);
+                "Active", "Order book", "Order book", "Avrum", 100.0, 100.0, null);
     }
 
     private ParticipationDto someHolding() {

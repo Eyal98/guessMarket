@@ -1,18 +1,35 @@
 /*
-  Structure only: spacing, weight, alignment, and the *proportions* of the lettering. Every colour,
-  typeface and absolute size lives in a skin file next to this one.
+  The one look of the client: navy on a light grey desk, as exercise 2 started in.
 
-  Sizes here are given in em rather than pixels, so they are relative to the base size the chosen
-  skin sets on .root. That is what lets a skin change the size of every label on the screen - which
-  the bonus asks for - without this file having to know anything about which skin is on, and without
-  a skin having to restate the proportion between a title and the text under it.
+  Sizes are given in em, relative to the base size set on .root, so the proportion between a title
+  and the text under it is stated once and holds whatever the base size is.
 */
-.app-title { -fx-font-size: 1.7em; -fx-font-weight: bold; -fx-alignment: center; }
-.file-path { -fx-font-size: 1em; }
-.status-bar { -fx-padding: 6 12 6 12; -fx-font-size: 1em; }
-.primary-button { -fx-font-weight: bold; }
-.detail-title { -fx-font-size: 1.42em; -fx-font-weight: bold; }
-.section-title { -fx-font-weight: bold; -fx-padding: 6 0 2 0; }
-.option-title { -fx-font-weight: bold; -fx-font-size: 1.17em; }
-.balance { -fx-font-size: 1.25em; -fx-font-weight: bold; }
-.filter-caption { -fx-font-size: 1em; }
+.root { -fx-font-family: "Segoe UI", "Dialog", sans-serif; -fx-font-size: 12px; }
+
+.root-pane { -fx-background-color: #f5f6f8; }
+.header { -fx-background-color: #1f3864; }
+.app-title { -fx-font-size: 1.7em; -fx-font-weight: bold; -fx-alignment: center; -fx-text-fill: white; }
+.file-path { -fx-font-size: 1em; -fx-text-fill: #2a2f3a; }
+.header .file-path { -fx-text-fill: #d6ddf0; }
+.status-bar { -fx-padding: 6 12 6 12; -fx-font-size: 1em; -fx-background-color: #e4e7ee;
+    -fx-text-fill: #2a2f3a; }
+
+.primary-button { -fx-font-weight: bold; -fx-background-color: #2e5496; -fx-text-fill: white; }
+.primary-button:hover { -fx-background-color: #3a68b8; }
+.primary-button:disabled { -fx-opacity: 0.55; }
+
+.detail-title { -fx-font-size: 1.42em; -fx-font-weight: bold; -fx-text-fill: #1f3864; }
+.section-title { -fx-font-weight: bold; -fx-padding: 6 0 2 0; -fx-text-fill: #2e5496; }
+.option-title { -fx-font-weight: bold; -fx-font-size: 1.17em; -fx-text-fill: #1f3864; }
+.caption { -fx-text-fill: #55607a; }
+.balance { -fx-font-size: 1.25em; -fx-font-weight: bold; -fx-text-fill: #1f3864; }
+.filter-caption { -fx-font-size: 1em; -fx-text-fill: #55607a; }
+.problem { -fx-text-fill: #b00020; }
+
+.trade-panel { -fx-padding: 10; -fx-background-color: #e9edf5; -fx-background-radius: 4; }
+.option-book { -fx-padding: 8; -fx-background-color: white; -fx-background-radius: 4;
+    -fx-border-color: #d5dae6; -fx-border-radius: 4; }
+
+/* Wrapped text in a table is drawn as a Text node, which does not follow the row's selection colour on its own. */
+.cell-text { -fx-fill: #1a1a1a; }
+.table-row-cell:selected .cell-text { -fx-fill: white; }

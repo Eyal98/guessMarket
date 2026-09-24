@@ -1,18 +1,19 @@
-package gm.ui.fx;
+package gm.client.events;
 
-import gm.engine.api.GuessMarketEngine;
-import gm.engine.api.GuessMarketException;
-import gm.engine.api.dto.EventInfoDto;
-import javafx.beans.property.SimpleStringProperty;
+import gm.client.Format;
+import gm.client.Views;
+import gm.client.http.MarketServer;
+import gm.client.main.MarketFeed;
+import gm.client.main.Messenger;
+import gm.client.trade.TradePanel;
+import gm.dto.EventInfoDto;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
-import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
@@ -25,19 +26,23 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * The events tab: every event on the left with the filters above them, and whichever one is selected
- * laid out on the right.
+ * The events tab: every event on the server on the left with the filters above them, and whichever
+ * one is selected laid out on the right, with the means of acting on it.
  * <p>
  * The filters are three groups of toggles, each with an "All" that is chosen to begin with, which is
- * what the requirements ask for. Filtering happens here rather than in the engine: the engine's job is
+ * what the requirements ask for. Filtering happens here rather than on the server: the server's job is
  * to say what is true, and which of that to show is a question about this screen.
+ * <p>
+ * The list arrives from the server twice a second, but the table is only redrawn when the list has
+ * actually changed, and it keeps whichever event was selected.
  */
 public final class EventsController {
 
     private static final String ALL = "All";
 
-    private final GuessMarketEngine engine;
+    private final MarketFeed feed;
     private final EventDetailView detail;
+    private final TradePanel trade;
 
     private final SplitPane root = new SplitPane();
     private final TableView<EventInfoDto> table = new TableView<>();
@@ -48,51 +53,67 @@ public final class EventsController {
     private final ToggleGroup statusFilter = new ToggleGroup();
     private final ToggleGroup commissionFilter = new ToggleGroup();
 
-    public EventsController(GuessMarketEngine engine, EventDetailView detail) {
-        this.engine = engine;
-        this.detail = detail;
+    /**
+     * Set while the list is being replaced. Replacing a table's rows clears its selection for an
+     * instant, and acting on that instant would blank the detail on the right every time any event on
+     * the server changed.
+     */
+    private boolean redrawing;
+
+    public EventsController(MarketServer server, MarketFeed feed, Messenger messenger) {
+        this.feed = feed;
+        this.trade = new TradePanel(server, feed, messenger);
+        this.detail = new EventDetailView(server, feed, trade.view());
         build();
+        feed.events().addListener((ignored, was, now) -> refresh());
+        refresh();
     }
 
     public Node view() {
         return root;
     }
 
-    /** Rebuilds the list from the engine, keeping whichever event was being looked at. */
-    public void refresh() {
+    /** Redraws the list from the latest the server said, keeping whichever event was being looked at. */
+    private void refresh() {
         EventInfoDto wasSelected = table.getSelectionModel().getSelectedItem();
-        shown.setAll(engine.isLoaded() ? engine.listEvents().stream().filter(passesFilters()).toList()
-                : List.of());
+        List<EventInfoDto> passing = feed.events().get().stream().filter(passesFilters()).toList();
+        redrawing = true;
+        try {
+            if (!passing.equals(shown)) {
+                shown.setAll(passing);
+            }
+            if (wasSelected != null) {
+                shown.stream()
+                        .filter(event -> event.number() == wasSelected.number())
+                        .findFirst()
+                        .ifPresent(table.getSelectionModel()::select);
+            }
+        } finally {
+            redrawing = false;
+        }
         summary.setText(summaryText());
-        if (wasSelected != null) {
-            shown.stream()
-                    .filter(event -> event.number() == wasSelected.number())
-                    .findFirst()
-                    .ifPresent(table.getSelectionModel()::select);
-        }
-        if (table.getSelectionModel().getSelectedItem() == null) {
-            detail.showNothing();
-        } else {
-            showSelected();
-        }
+        showSelected();
     }
 
     private void build() {
-        table.setId("eventsTable");
+        Views.fitted(table).setId("eventsTable");
         table.setItems(shown);
-        table.setPlaceholder(new Label("No events to show."));
+        table.setPlaceholder(new Label("No events yet. Upload an events file from the Account tab."));
         table.getColumns().addAll(List.of(
-                column("#", event -> String.valueOf(event.number()), 34),
-                column("Name", EventInfoDto::name, 160),
-                column("Status", EventInfoDto::status, 78),
-                column("Type", EventInfoDto::methodKind, 82),
-                column("Commission", event -> Format.percent(event.commissionPercent())
-                        + " " + event.commissionType(), 112),
+                Views.<EventInfoDto>textColumn("#", event -> String.valueOf(event.number()), 34),
+                Views.textColumn("Name", EventInfoDto::name, 160),
+                Views.textColumn("Status", EventInfoDto::status, 78),
+                Views.textColumn("Type", EventInfoDto::methodKind, 82),
+                Views.<EventInfoDto>textColumn("Commission", EventsController::commissionOf, 112),
                 // The event's own account is one of the columns the exercise asks for by name, so it
                 // comes before the market maker, which is an addition of ours and may scroll instead.
-                column("Account", event -> Format.money(event.accountBalance()), 82),
-                column("Market maker", EventInfoDto::marketMakerName, 100)));
-        table.getSelectionModel().selectedItemProperty().addListener((ignored, was, now) -> showSelected());
+                Views.<EventInfoDto>textColumn("Account", event -> Format.money(event.accountBalance()), 82),
+                Views.textColumn("Market maker", EventInfoDto::marketMakerName, 100)));
+        table.getSelectionModel().selectedItemProperty().addListener((ignored, was, now) -> {
+            if (!redrawing) {
+                showSelected();
+            }
+        });
         VBox.setVgrow(table, Priority.ALWAYS);
 
         VBox left = new VBox(8, filterBar(), summary, table);
@@ -152,42 +173,22 @@ public final class EventsController {
     }
 
     private String summaryText() {
-        if (!engine.isLoaded()) {
-            return "No file loaded.";
+        int total = feed.events().get().size();
+        if (total == 0) {
+            return "No events on the server yet.";
         }
-        int total = engine.listEvents().size();
         return shown.size() == total
                 ? total + (total == 1 ? " event" : " events")
                 : shown.size() + " of " + total + " events shown";
     }
 
+    private static String commissionOf(EventInfoDto event) {
+        return Format.percent(event.commissionPercent()) + " " + event.commissionType();
+    }
+
     private void showSelected() {
         EventInfoDto selected = table.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            detail.showNothing();
-            return;
-        }
-        try {
-            detail.show(selected);
-        } catch (GuessMarketException e) {
-            detail.showMessage(e.getMessage());
-        }
-    }
-
-    private static TableColumn<EventInfoDto, String> column(String title,
-                                                            java.util.function.Function<EventInfoDto, String> value,
-                                                            double width) {
-        TableColumn<EventInfoDto, String> column = new TableColumn<>(title);
-        column.setCellValueFactory(row -> new SimpleStringProperty(value.apply(row.getValue())));
-        column.setPrefWidth(width);
-        return column;
-    }
-
-    /** Wraps anything that can outgrow its space, so a small window stays usable. */
-    static ScrollPane scrolling(Node content) {
-        ScrollPane pane = new ScrollPane(content);
-        pane.setFitToWidth(true);
-        pane.setPannable(true);
-        return pane;
+        detail.watch(selected);
+        trade.show(selected);
     }
 }

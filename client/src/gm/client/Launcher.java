@@ -1,9 +1,9 @@
-package gm.ui.fx;
+package gm.client;
 
 /**
  * The program's entry point.
  * <p>
- * It exists only to call {@link GuessMarketApp}, and deliberately does not extend
+ * It exists only to call {@link GuessMarketClientApp}, and deliberately does not extend
  * {@code Application} itself. When the main class of a jar extends {@code Application}, the Java
  * launcher insists on finding JavaFX as a named module and refuses to start with "JavaFX runtime
  * components are missing" — a failure that depends on how the program was launched rather than on
@@ -15,6 +15,6 @@ public final class Launcher {
     }
 
     public static void main(String[] args) {
-        GuessMarketApp.main(args);
+        GuessMarketClientApp.main(args);
     }
 }

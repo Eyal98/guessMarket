@@ -1,281 +1,87 @@
-package gm.ui.fx;
+package gm.client.main;
 
-import gm.engine.api.GuessMarketEngine;
-import gm.engine.api.GuessMarketException;
-import gm.engine.api.dto.LoadResultDto;
-import javafx.application.Platform;
-import javafx.concurrent.Task;
+import gm.client.http.MarketServer;
+import gm.dto.UserDetailDto;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
-import javafx.stage.FileChooser;
-import javafx.stage.Window;
-
-import java.io.File;
 
 /**
- * The shell around everything: choosing a file, loading it, and the two tabs.
- * <p>
- * Loading runs on a background task rather than on the screen's own thread. The reading itself is
- * quick, so a short pause is added deliberately — without it the progress bar would appear and vanish
- * in the same instant and nobody would see that anything had happened.
+ * The shell around everything once somebody has logged in: who they are, the tabs, and the status
+ * line. It is also where the rest of the screen reports to, since it owns both the status line and
+ * the window a refusal is shown over.
  */
-public final class MainController {
+public final class MainController implements Messenger {
 
-    /** Long enough for the progress to be visible, short enough not to be a nuisance. */
-    private static final long SIMULATED_WORK_MILLIS = 1400;
-    private static final int PROGRESS_STEPS = 20;
-    /** What the engine names a saved market. It accepts a path that already carries it. */
-    private static final String SAVE_EXTENSION = ".gm";
-
-    @FXML private Button loadButton;
-    @FXML private Button saveButton;
-    @FXML private Button restoreButton;
-    @FXML private Label loadedPathLabel;
+    @FXML private Label userLabel;
     @FXML private Label statusLabel;
-    @FXML private ProgressBar loadProgress;
-    @FXML private CheckBox animationsSwitch;
-    @FXML private ComboBox<Skin> skinChooser;
+    @FXML private Button logoutButton;
     @FXML private TabPane tabs;
     @FXML private Tab eventsTab;
-    @FXML private Tab usersTab;
+    @FXML private Tab accountTab;
+    @FXML private Tab chatTab;
 
-    private GuessMarketEngine engine;
-    private EventsController events;
-    private UsersController users;
-    private Animations animations;
-
-    /** Called once, after the screen is built, to give it the engine and its two panes. */
-    public void start(GuessMarketEngine engine, EventsController events, UsersController users,
-                      Animations animations) {
-        this.engine = engine;
-        this.events = events;
-        this.users = users;
-        this.animations = animations;
-        eventsTab.setContent(events.view());
-        usersTab.setContent(users.view());
-        offerTheSkins();
-        offerTheAnimations();
-        slideBetweenTabs();
-    }
+    private Runnable logOut;
+    private Runnable sessionEnded;
 
     /**
-     * Slides the arriving tab in from the side the reader moved towards.
-     * <p>
-     * Moving right brings the new panel in from the right and moving back brings it from the left,
-     * so the movement agrees with the direction of travel.
-     * <p>
-     * It listens to the selected <em>item</em>, not the selected index. The two are not updated
-     * together: when the index listener runs, getSelectedItem() still answers with the tab being
-     * left behind, so watching the index animates the panel on its way out instead of the one
-     * arriving - which looks like nothing happening at all, because the departing panel is taken
-     * off the screen regardless.
+     * Called once, after the screen is built, to give it its tabs and say what leaving means.
+     *
+     * @param logOut       what the Log out button does
+     * @param sessionEnded what to do when the server no longer knows this session
      */
-    private void slideBetweenTabs() {
-        tabs.getSelectionModel().selectedItemProperty().addListener((ignored, was, arriving) -> {
-            if (arriving == null || arriving.getContent() == null) {
-                return;
-            }
-            boolean movingRight = tabs.getTabs().indexOf(arriving) > tabs.getTabs().indexOf(was);
-            // Genuinely a turn later, not onScreenThread: that runs straight away when it is already
-            // on the screen thread, which is before the arriving panel has been put into the scene.
-            Platform.runLater(() -> animations.slideIn(arriving.getContent(), movingRight));
-        });
-    }
-
-    /** Wires the movement switch. It starts clear, so the screen is still until somebody asks. */
-    private void offerTheAnimations() {
-        animationsSwitch.setSelected(animations.isOn());
-        animationsSwitch.selectedProperty()
-                .addListener((ignored, was, now) -> animations.setOn(now));
-    }
-
-    /**
-     * Fills the skin chooser and lets it redress the screen. It starts on the plain look, because a
-     * bonus is meant to be switched on deliberately rather than found already running.
-     */
-    private void offerTheSkins() {
-        skinChooser.getItems().setAll(Skin.values());
-        skinChooser.setValue(Skin.DEFAULT);
-        skinChooser.valueProperty().addListener((ignored, was, now) -> {
-            if (now != null && loadButton.getScene() != null) {
-                now.applyTo(loadButton.getScene());
-            }
-        });
+    public void start(UserDetailDto me, Node events, Node account, Node chat, Runnable logOut,
+                      Runnable sessionEnded) {
+        this.logOut = logOut;
+        this.sessionEnded = sessionEnded;
+        userLabel.setText("Logged in as " + me.name());
+        eventsTab.setContent(events);
+        accountTab.setContent(account);
+        chatTab.setContent(chat);
+        // The exercise sends a user to the events screen once they have logged in.
+        tabs.getSelectionModel().select(eventsTab);
+        statusLabel.setText("Welcome, " + me.name() + ". Upload an events file or load funds from the"
+                + " Account tab.");
     }
 
     @FXML
-    private void onLoadFile() {
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle("Choose an events file");
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Guess Market files", "*.xml"));
-        File chosen = chooser.showOpenDialog(window());
-        if (chosen != null) {
-            load(chosen);
-        }
+    private void onLogOut() {
+        logoutButton.setDisable(true);
+        logOut.run();
     }
 
-    /**
-     * Puts the whole market away in a file: every event, every account, the orders still resting and
-     * the past both charts are drawn from.
-     */
-    @FXML
-    private void onSaveState() {
-        if (!engine.isLoaded()) {
-            statusLabel.setText("There is nothing to save until a file has been loaded.");
-            return;
-        }
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle("Save the market");
-        chooser.getExtensionFilters().add(savedMarketFilter());
-        chooser.setInitialFileName("guess-market" + SAVE_EXTENSION);
-        File chosen = chooser.showSaveDialog(window());
-        if (chosen == null) {
-            return;
-        }
-        try {
-            statusLabel.setText("Saved to " + engine.saveState(chosen.getAbsolutePath()) + ".");
-        } catch (GuessMarketException e) {
-            reportFailure(e);
-        }
-    }
-
-    /** Brings a saved market back, exactly where it was left. */
-    @FXML
-    private void onRestoreState() {
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle("Restore a saved market");
-        chooser.getExtensionFilters().add(savedMarketFilter());
-        File chosen = chooser.showOpenDialog(window());
-        if (chosen == null) {
-            return;
-        }
-        try {
-            engine.loadState(chosen.getAbsolutePath());
-            loadedPathLabel.setText(chosen.getAbsolutePath());
-            statusLabel.setText("Restored from " + chosen.getAbsolutePath() + ".");
-            refreshEverything();
-            animations.play(Animations.Motion.APPEARING, tabs);
-        } catch (GuessMarketException e) {
-            // A failed restore leaves the engine holding whatever it had, so the screen is left
-            // showing that rather than being emptied.
-            statusLabel.setText("The saved market was not restored.");
-            reportFailure(e);
-        }
-    }
-
-    private FileChooser.ExtensionFilter savedMarketFilter() {
-        return new FileChooser.ExtensionFilter("Saved markets", "*" + SAVE_EXTENSION);
-    }
-
-    /**
-     * Loads a chosen file: the background task, the progress and the redraw.
-     * <p>
-     * Package private rather than private so the whole of this path can be driven directly,
-     * without a file chooser standing in the way of it. Nothing in the program itself calls it
-     * but {@link #onLoadFile()}.
-     */
-    void load(File file) {
-        Task<LoadResultDto> loading = new Task<>() {
-            @Override
-            protected LoadResultDto call() throws InterruptedException {
-                for (int step = 1; step <= PROGRESS_STEPS; step++) {
-                    Thread.sleep(SIMULATED_WORK_MILLIS / PROGRESS_STEPS);
-                    updateProgress(step, PROGRESS_STEPS);
-                }
-                return engine.loadEventsFile(file.getAbsolutePath());
-            }
-        };
-
-        loadProgress.progressProperty().bind(loading.progressProperty());
-        showBusy(true);
-
-        loading.setOnSucceeded(ignored -> {
-            showBusy(false);
-            LoadResultDto result = loading.getValue();
-            loadedPathLabel.setText(file.getAbsolutePath());
-            statusLabel.setText(result.eventsLoaded() + " events and "
-                    + engine.listUsers().size() + " users loaded. Opening every event would cost "
-                    + Format.money(result.costOfOpeningEverything()) + ".");
-            refreshEverything();
-            // The moment a whole new market arrives is the one most worth marking.
-            animations.play(Animations.Motion.APPEARING, tabs);
-        });
-        loading.setOnFailed(ignored -> {
-            showBusy(false);
-            Throwable cause = loading.getException();
-            statusLabel.setText("The file was not loaded.");
-            reportFailure(cause);
-        });
-
-        Thread worker = new Thread(loading, "guess-market-file-loader");
-        worker.setDaemon(true);
-        worker.start();
-    }
-
-    private void showBusy(boolean busy) {
-        loadProgress.setVisible(busy);
-        loadProgress.setManaged(busy);
-        loadButton.setDisable(busy);
-        saveButton.setDisable(busy);
-        restoreButton.setDisable(busy);
-        // The reading happens on a background thread while the rest of the screen stays alive, and
-        // the engine is not built to be used from two threads at once. Closing the tabs for the
-        // moment it takes is simpler and safer than making every call on it thread safe.
-        tabs.setDisable(busy);
-        if (!busy) {
-            loadProgress.progressProperty().unbind();
-        }
-    }
-
-    /** Redraws both tabs. Anything either of them does can change what the other shows. */
-    void refreshEverything() {
-        events.refresh();
-        users.refresh();
-    }
-
-    /**
-     * Shows why something could not be done. A rejected file can carry a whole list of faults, so it
-     * goes in a scrolling box rather than a single line that would be cut off.
-     */
-    void reportFailure(Throwable cause) {
-        String message = cause instanceof GuessMarketException || cause.getMessage() != null
-                ? cause.getMessage()
-                : cause.toString();
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.initOwner(window());
-        alert.setTitle("Guess Market");
-        alert.setHeaderText("That could not be done");
-        TextArea detail = new TextArea(message);
-        detail.setEditable(false);
-        detail.setWrapText(true);
-        detail.setPrefRowCount(Math.min(14, message.split("\n").length + 2));
-        alert.getDialogPane().setContent(detail);
-        alert.getDialogPane().setPrefWidth(640);
-        alert.showAndWait();
-    }
-
-    void setStatus(String message) {
+    @Override
+    public void status(String message) {
         statusLabel.setText(message);
     }
 
-    private Window window() {
-        return loadButton.getScene() == null ? null : loadButton.getScene().getWindow();
-    }
-
-    /** Runs something on the screen thread, whichever thread noticed it needed doing. */
-    static void onScreenThread(Runnable action) {
-        if (Platform.isFxApplicationThread()) {
-            action.run();
-        } else {
-            Platform.runLater(action);
+    /**
+     * Shows why something could not be done. A refused file can carry a whole list of faults, so the
+     * explanation goes in a scrolling box rather than a single line that would be cut off.
+     */
+    @Override
+    public void refused(MarketServer.Failure failure) {
+        if (failure.sessionLost()) {
+            sessionEnded.run();
+            return;
         }
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        if (statusLabel.getScene() != null) {
+            alert.initOwner(statusLabel.getScene().getWindow());
+        }
+        alert.setTitle("Guess Market");
+        alert.setHeaderText("That could not be done");
+        TextArea detail = new TextArea(failure.message());
+        detail.setEditable(false);
+        detail.setWrapText(true);
+        detail.setPrefRowCount(Math.min(14, failure.message().split("\n").length + 2));
+        alert.getDialogPane().setContent(detail);
+        alert.getDialogPane().setPrefWidth(640);
+        alert.showAndWait();
     }
 }
