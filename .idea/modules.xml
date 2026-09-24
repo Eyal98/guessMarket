@@ -2,9 +2,12 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/dto/dto.iml" filepath="$PROJECT_DIR$/dto/dto.iml" />
       <module fileurl="file://$PROJECT_DIR$/engine/engine.iml" filepath="$PROJECT_DIR$/engine/engine.iml" />
-      <module fileurl="file://$PROJECT_DIR$/uifx/uifx.iml" filepath="$PROJECT_DIR$/uifx/uifx.iml" />
+      <module fileurl="file://$PROJECT_DIR$/server/server.iml" filepath="$PROJECT_DIR$/server/server.iml" />
+      <module fileurl="file://$PROJECT_DIR$/client/client.iml" filepath="$PROJECT_DIR$/client/client.iml" />
       <module fileurl="file://$PROJECT_DIR$/enginetest/enginetest.iml" filepath="$PROJECT_DIR$/enginetest/enginetest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/clienttest/clienttest.iml" filepath="$PROJECT_DIR$/clienttest/clienttest.iml" />
     </modules>
   </component>
 </project>

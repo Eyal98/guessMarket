@@ -138,8 +138,17 @@ public final class MarketServer {
         send(post("account/deposit", "amount", String.valueOf(amount)), UserDetailDto.class, done, failed);
     }
 
-    /** Sends an events file as a multipart upload, the way the course's example does. */
+    /**
+     * Sends an events file as a multipart upload, the way the course's example does. A file that cannot
+     * be read is reported as such here, rather than failing half way through sending and being taken
+     * for a server that did not answer.
+     */
     public void upload(File file, Consumer<UploadResultDto> done, Consumer<Failure> failed) {
+        if (!file.isFile() || !file.canRead()) {
+            deliverOn.execute(() -> failed.accept(new Failure(Failure.UNREACHABLE, "The file \""
+                    + file.getAbsolutePath() + "\" cannot be read, so it was not sent.", List.of())));
+            return;
+        }
         RequestBody body = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart("file", file.getName(), RequestBody.create(file, XML))

@@ -7,8 +7,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="engine" />
-    <orderEntry type="module" module-name="dto" />
+    <orderEntry type="module" module-name="client" />
     <orderEntry type="module-library">
       <library name="junit-console-standalone">
         <CLASSES>

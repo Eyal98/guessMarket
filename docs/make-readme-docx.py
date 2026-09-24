@@ -48,6 +48,11 @@ def withBoldSpans(paragraph, text):
     return paragraph
 
 
+def plain(text):
+    """Text with the Markdown code marks taken out, for places that take no formatting at all."""
+    return text.replace("`", "")
+
+
 def addTable(document, rows):
     header, *body = rows
     table = document.add_table(rows=1, cols=len(header))
@@ -127,11 +132,11 @@ def build(identityNumber):
         if stripped.startswith("---"):
             rightToLeft(document.add_paragraph()).add_run("─" * 40)
         elif stripped.startswith("### "):
-            rightToLeft(document.add_heading(stripped[4:], level=3))
+            rightToLeft(document.add_heading(plain(stripped[4:]), level=3))
         elif stripped.startswith("## "):
-            rightToLeft(document.add_heading(stripped[3:], level=2))
+            rightToLeft(document.add_heading(plain(stripped[3:]), level=2))
         elif stripped.startswith("# "):
-            rightToLeft(document.add_heading(stripped[2:], level=1))
+            rightToLeft(document.add_heading(plain(stripped[2:]), level=1))
         elif stripped.startswith("> "):
             withBoldSpans(rightToLeft(document.add_paragraph()), stripped[2:]).runs[0].italic = True
         elif re.match(r"^\d+\.\s", stripped) or stripped.startswith("- "):
