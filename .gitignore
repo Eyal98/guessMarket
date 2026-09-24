@@ -15,6 +15,13 @@ docs/readme.docx
 # carry them in the history: README.md says which build to fetch and where to unpack it.
 lib/javafx/
 
+### Other third-party jars ###
+# Gson, OkHttp with its four companions, and the servlet API to compile against. Small, but binaries
+# all the same, and each is one Maven Central download away; README.md lists the exact versions.
+lib/gson/
+lib/okhttp/
+lib/servlet/
+
 ### graphify ###
 # Local working directory of the graphify tool. Everything in it is generated from the source in
 # seconds by "graphify extract . --code-only", and the graph alone runs to well over a megabyte,
