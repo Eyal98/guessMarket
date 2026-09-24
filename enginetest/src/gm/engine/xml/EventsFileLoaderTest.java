@@ -285,8 +285,8 @@ class EventsFileLoaderTest {
     private static void assertMentions(FileLoadException failure, String... expected) {
         String message = failure.getMessage();
         for (String fragment : expected) {
-            assertTrue(message.contains(fragment),
-                    "expected the report to mention \"" + fragment + "\", but it read:" + System.lineSeparator() + message);
+            assertTrue(message.contains(fragment), "expected the report to mention \"" + fragment
+                    + "\", but it read:" + System.lineSeparator() + message);
         }
     }
 

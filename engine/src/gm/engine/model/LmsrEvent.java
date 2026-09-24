@@ -84,7 +84,7 @@ public final class LmsrEvent extends Event {
 
         EventOption option = options().get(optionIndex);
         double sharesCost = method.buyCost(sharesPerOption(), optionIndex, quantity);
-        double fee = commission().purchaseFee(sharesCost);
+        double fee = purchaseFeeFor(buyer, sharesCost);
 
         buyer.pay(sharesCost, "Bought " + sharesOf(quantity, optionIndex));
         account().deposit(sharesCost);

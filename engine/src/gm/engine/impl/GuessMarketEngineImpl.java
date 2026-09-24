@@ -394,7 +394,7 @@ public final class GuessMarketEngineImpl implements GuessMarketEngine {
                 event.options().stream().map(EventOption::name).toList(),
                 event.status().displayName(), event.methodDescription(), event.methodKind(),
                 event.marketMaker() == null ? null : event.marketMaker().name(),
-                event.account().balance(),
+                event.account().balance(), event.openingCost(),
                 event.winningOption() == null ? null : event.winningOption().name());
     }
 

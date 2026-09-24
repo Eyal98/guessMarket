@@ -135,7 +135,7 @@ public abstract sealed class Event permits LmsrEvent, OrderBookEvent {
             }
             User winner = entry.getKey();
             double gross = winningShares * payoutPerWinningShare();
-            double closingFee = commission.closingFee(gross);
+            double closingFee = winner == marketMaker ? 0.0 : commission.closingFee(gross);
 
             account.withdraw(gross);
             winner.receive(gross, "Won " + winningShares + " of \"" + winningOption.name() + "\" in \""
@@ -166,6 +166,15 @@ public abstract sealed class Event permits LmsrEvent, OrderBookEvent {
             marketMaker.pay(-leftover, "Covered the shortfall of \"" + name + "\" when it closed");
             account.deposit(-leftover);
         }
+    }
+
+    /**
+     * The commission on a purchase of this value. A market maker trading in their own event pays none:
+     * the commission is their own income, and paying it to themselves would only write two lines in
+     * their ledger that cancel out and count as collected money nobody else ever paid.
+     */
+    protected double purchaseFeeFor(User buyer, double value) {
+        return buyer == marketMaker ? 0.0 : commission.purchaseFee(value);
     }
 
     /**
@@ -308,12 +317,13 @@ public abstract sealed class Event permits LmsrEvent, OrderBookEvent {
     }
 
     /**
-     * A price or an amount as a person would write it: never more than four decimals, and no trailing
-     * zeros, so a price agreed at 0.58 reads 0.58 even when the arithmetic that produced it did not
-     * land on it exactly.
+     * A price or an amount as a person would write money: at least two decimals and never more than
+     * four, so a price agreed at 0.58 reads 0.58 even when the arithmetic that produced it did not land
+     * on it exactly, and a price of 0.6 reads 0.60 like every other amount on the screen.
      */
     protected static String amount(double value) {
-        return BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();
+        BigDecimal rounded = BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP).stripTrailingZeros();
+        return (rounded.scale() < 2 ? rounded.setScale(2, RoundingMode.UNNECESSARY) : rounded).toPlainString();
     }
 
     private void requireMarketMaker(User actor, String what) {

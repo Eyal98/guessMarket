@@ -310,6 +310,8 @@ class MarketEngineTest {
         assertEquals("LMSR", events.get(0).methodKind());
         assertEquals("Order book", events.get(1).methodKind());
         assertEquals(1000.0, events.get(1).accountBalance(), TOLERANCE, "the initial stock was paid in");
+        assertEquals(1000.0, events.get(1).openingCost(), TOLERANCE);
+        assertEquals(100 * Math.log(2), events.get(0).openingCost(), TOLERANCE, "the LMSR subsidy, b ln 2");
         assertNull(events.get(1).winningOptionName());
         assertEquals("LMSR", events.get(RAIN - 1).methodKind());
     }

@@ -218,7 +218,7 @@ public final class OrderBookEvent extends Event {
      */
     private Trade settleResale(User seller, User buyer, int optionIndex, long quantity, double price) {
         double value = quantity * price;
-        double fee = commission().purchaseFee(value);
+        double fee = purchaseFeeFor(buyer, value);
 
         String at = " at " + amount(price);
         buyer.pay(value, "Bought " + sharesOf(quantity, optionIndex) + " from " + seller.name() + at);
@@ -303,7 +303,7 @@ public final class OrderBookEvent extends Event {
     /** One buyer's part of a mint: they pay the event, and brand new shares appear in their hands. */
     private Trade settleMintedShare(User buyer, int optionIndex, long quantity, double price) {
         double value = quantity * price;
-        double fee = commission().purchaseFee(value);
+        double fee = purchaseFeeFor(buyer, value);
 
         buyer.pay(value, "Bought " + quantity + " new shares of \"" + options().get(optionIndex).name()
                 + "\" in \"" + name() + "\" at " + amount(price));

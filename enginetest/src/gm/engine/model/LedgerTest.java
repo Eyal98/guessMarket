@@ -99,6 +99,38 @@ class LedgerTest {
     }
 
     @Test
+    @DisplayName("A market maker trading in their own event pays no commission to themselves")
+    void noCommissionToOneself() {
+        LmsrEvent event = rain(10, CommissionType.ON_PURCHASE);
+        int before = tikva.ledger().size();
+
+        event.buy(tikva, 0, 100);
+
+        assertEquals(before + 1, tikva.ledger().size(), "the purchase, and no commission paid to herself");
+        assertEquals(0.0, event.holdingOf(tikva).commissionPaid(), TOLERANCE);
+        assertEquals(0.0, event.commissionCollected(), TOLERANCE, "nothing was collected from anybody");
+    }
+
+    @Test
+    @DisplayName("A market maker who wins in their own event is paid in full, with no closing commission")
+    void noClosingCommissionToOneself() {
+        OrderBookEvent cup = new OrderBookEvent("Cup", "Who wins?",
+                new Commission(15, CommissionType.ON_CLOSE), List.of("Argentina", "Spain"), 100, 1, true);
+        cup.assignMarketMaker(tikva);
+        cup.open(tikva);
+        cup.submitOrder(tikva, 0, OrderSide.SELL, 20, 0.60);
+        cup.submitOrder(menash, 0, OrderSide.BUY, 20, 0.60);
+
+        cup.close(tikva, 0);
+
+        assertEquals("Won 80 of \"Argentina\" in \"Cup\"", fromEnd(tikva, 1).description());
+        assertEquals("Commission from Menash for closing \"Cup\"", last(tikva).description(),
+                "Menash pays his 15%, Tikva pays nothing on her own 80");
+        assertEquals(80 - (100 - 12.0), cup.holdingOf(tikva).netResult(), TOLERANCE,
+                "she paid 100 for her stock, sold 20 for 12 and was paid 80 for the rest");
+    }
+
+    @Test
     @DisplayName("Selling back to an LMSR event is a line for the seller")
     void sellingIsALine() {
         LmsrEvent event = rain(0, CommissionType.ON_PURCHASE);
@@ -138,8 +170,8 @@ class LedgerTest {
         cup.submitOrder(menash, 0, OrderSide.BUY, 10, 0.60);
         cup.submitOrder(avrum, 1, OrderSide.BUY, 10, 0.45);
 
-        assertEquals("Bought 10 new shares of \"Argentina\" in \"Cup\" at 0.6", last(menash).description());
-        assertEquals("Bought 10 new shares of \"Spain\" in \"Cup\" at 0.4", last(avrum).description(),
+        assertEquals("Bought 10 new shares of \"Argentina\" in \"Cup\" at 0.60", last(menash).description());
+        assertEquals("Bought 10 new shares of \"Spain\" in \"Cup\" at 0.40", last(avrum).description(),
                 "the order that arrived second pays only what completes the base value");
         assertTrue(last(avrum).amount() < 0);
     }

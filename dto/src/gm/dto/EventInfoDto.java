@@ -25,11 +25,13 @@ import java.util.List;
  * @param methodKind        which market this is in one word, for filtering: LMSR or Order book
  * @param marketMakerName   the user who runs this event: whoever uploaded the file it came in
  * @param accountBalance    what the event's own account holds, which the overview list shows beside it
+ * @param openingCost       what its market maker pays to open it: the LMSR subsidy, or an order book's
+ *                          initial stock
  * @param winningOptionName which option the event was decided on, or null while it is still undecided
  */
 public record EventInfoDto(int number, String name, String description, int commissionPercent,
                            String commissionType, String commissionTiming, List<String> optionNames,
                            String status, String tradingMethod, String methodKind,
-                           String marketMakerName, double accountBalance,
+                           String marketMakerName, double accountBalance, double openingCost,
                            String winningOptionName) {
 }

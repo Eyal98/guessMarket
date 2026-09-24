@@ -28,7 +28,8 @@ public final class Account {
 
     private static void requireNotNegative(double amount, String action) {
         if (amount < 0) {
-            throw new IllegalArgumentException("The amount " + action + " cannot be negative, but it is " + amount + ".");
+            throw new IllegalArgumentException("The amount " + action + " cannot be negative, but it is "
+                    + amount + ".");
         }
     }
 }
