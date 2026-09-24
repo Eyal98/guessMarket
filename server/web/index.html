@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Guess Market server</title>
+    <style>
+        body { font-family: Segoe UI, Arial, sans-serif; margin: 2em auto; max-width: 46em; color: #222; }
+        code { background: #f2f2f2; padding: 0 .25em; }
+        td { padding: .15em 1em .15em 0; vertical-align: top; }
+    </style>
+</head>
+<body>
+<h1>Guess Market server</h1>
+<p>The server is running. Start the Guess Market client to use it; the client finds this server by itself.</p>
+<p>Every request below except <code>/login</code> needs a logged-in session, and every answer is JSON.</p>
+<table>
+    <tr><td><code>POST /login?username=</code></td><td>log in by name</td></tr>
+    <tr><td><code>POST /logout</code></td><td>log out</td></tr>
+    <tr><td><code>GET /users</code></td><td>everybody, with balance and whether they run an event</td></tr>
+    <tr><td><code>GET /account</code></td><td>your own details</td></tr>
+    <tr><td><code>GET /account/ledger?after=</code></td><td>the lines of your account after the ones you have</td></tr>
+    <tr><td><code>POST /account/deposit?amount=</code></td><td>load funds</td></tr>
+    <tr><td><code>GET /events</code></td><td>every event</td></tr>
+    <tr><td><code>POST /events/upload</code></td><td>an events file, as a multipart part named <code>file</code></td></tr>
+    <tr><td><code>GET /events/lmsr?event=</code></td><td>one LMSR event</td></tr>
+    <tr><td><code>GET /events/book?event=</code></td><td>one order book event</td></tr>
+    <tr><td><code>POST /events/open?event=</code></td><td>open an event you run</td></tr>
+    <tr><td><code>POST /events/close?event=&amp;winner=</code></td><td>close an event you run</td></tr>
+    <tr><td><code>POST /trade/buy?event=&amp;option=&amp;quantity=</code></td><td>buy from an LMSR event</td></tr>
+    <tr><td><code>POST /trade/sell?event=&amp;option=&amp;quantity=</code></td><td>sell back to an LMSR event</td></tr>
+    <tr><td><code>POST /trade/order?event=&amp;option=&amp;side=&amp;quantity=&amp;price=</code></td><td>place an order in a book</td></tr>
+    <tr><td><code>GET /chat?after=</code></td><td>the chat messages after the ones you have</td></tr>
+    <tr><td><code>POST /chat?message=</code></td><td>say something in the chat</td></tr>
+</table>
+</body>
+</html>

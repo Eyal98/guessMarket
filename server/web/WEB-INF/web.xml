@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The servlets declare themselves with @WebServlet; this file holds only what has no annotation.
+  Version 6.0 is Jakarta EE 10, which both Tomcat 10.1 and Tomcat 11 run.
+-->
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0">
+
+    <display-name>Guess Market</display-name>
+
+    <!-- Every parameter and every answer is UTF-8, so names and messages arrive as they were typed. -->
+    <request-character-encoding>UTF-8</request-character-encoding>
+    <response-character-encoding>UTF-8</response-character-encoding>
+
+    <!--
+      Minutes. A running client asks the server something twice a second, which keeps its session
+      alive indefinitely; a client that was killed stops asking, and its name is free again soon after
+      rather than locked until the server restarts.
+    -->
+    <session-config>
+        <session-timeout>2</session-timeout>
+    </session-config>
+
+    <welcome-file-list>
+        <welcome-file>index.html</welcome-file>
+    </welcome-file-list>
+</web-app>
