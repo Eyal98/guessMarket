@@ -45,7 +45,7 @@ xcopy /e /i /q /y "%ROOT%build\client" "%STAGE%\client" >nul
 copy /y "%ROOT%docs\readme.docx" "%STAGE%\readme.docx" >nul
 xcopy /e /i /q /y "%ROOT%test-files\ex3" "%STAGE%\sample-files" >nul
 
-for %%M in (dto engine server enginetest clienttest) do (
+for %%M in (dto engine server enginetest servertest clienttest) do (
     xcopy /e /i /q /y "%ROOT%%%M" "%SOURCE%\%%M" >nul
 )
 xcopy /e /i /q /y "%ROOT%client\src" "%SOURCE%\client\src" >nul

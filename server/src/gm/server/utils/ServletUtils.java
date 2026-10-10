@@ -26,7 +26,9 @@ public final class ServletUtils implements ServletContextListener {
     @Override
     public void contextInitialized(ServletContextEvent startup) {
         ServletContext context = startup.getServletContext();
-        context.setAttribute(ENGINE, new GuessMarketEngineImpl());
+        // The engine is written for one caller at a time; Tomcat calls it from many threads at once, so
+        // the server - the layer that brings the threads - guards it before any servlet can reach it.
+        context.setAttribute(ENGINE, new ThreadSafeEngine(new GuessMarketEngineImpl()));
         context.setAttribute(CHAT_ROOM, new ChatRoom());
         context.setAttribute(LOGGED_IN, new LoggedInUsers());
     }

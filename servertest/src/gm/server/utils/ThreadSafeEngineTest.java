@@ -1,10 +1,13 @@
-package gm.engine.impl;
+package gm.server.utils;
 
-import gm.engine.TestFiles;
 import gm.engine.api.GuessMarketEngine;
+import gm.engine.impl.GuessMarketEngineImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -21,17 +24,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * thread of its own, so while one person buys, another is loading funds and a dozen clients are
  * pulling the lists every half second.
  * <p>
+ * The engine itself is written for one thread at a time; it is the server, the layer that brings the
+ * threads, that guards it. These tests drive the guarded engine exactly as the servlets do.
+ * <p>
  * Nothing here can prove the absence of a race, but a market that is not guarded would lose money in
  * these tests far more often than not, and would sooner or later throw from a list being changed
  * while it is read.
  */
-class ConcurrentEngineTest {
+class ThreadSafeEngineTest {
 
     private static final double TOLERANCE = 0.0001;
     private static final int PEOPLE = 8;
     private static final int ROUNDS = 200;
 
-    private final GuessMarketEngine engine = new GuessMarketEngineImpl();
+    private final GuessMarketEngine engine = new ThreadSafeEngine(new GuessMarketEngineImpl());
 
     @Test
     @DisplayName("Deposits made at the same time are all counted, and readers never trip over writers")
@@ -70,7 +76,10 @@ class ConcurrentEngineTest {
     void simultaneousPurchasesKeepTheBooksStraight() throws Exception {
         engine.enterMarket("Tikva");
         engine.deposit("Tikva", 1000);
-        engine.uploadEvents("Tikva", "small.xml", TestFiles.open("ex3/small.xml"));
+        try (InputStream small = Files.newInputStream(
+                Path.of(System.getProperty("gm.testfiles", "test-files"), "ex3", "small.xml"))) {
+            engine.uploadEvents("Tikva", "small.xml", small);
+        }
         engine.openEvent(1, "Tikva");
         for (int person = 0; person < PEOPLE; person++) {
             engine.enterMarket("Buyer " + person);

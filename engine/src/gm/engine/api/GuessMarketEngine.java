@@ -26,8 +26,8 @@ import java.util.List;
  * added, so a number handed out once keeps meaning the same event. Options are counted from 1 within
  * their event.
  * <p>
- * Every implementation must be safe to call from many threads at once, because a servlet container
- * serves each request on a thread of its own.
+ * The engine is not itself safe for many threads at once. Whoever brings the threads guards it: the
+ * server, which answers every request on a thread of its own, wraps it before any servlet sees it.
  */
 public interface GuessMarketEngine {
 

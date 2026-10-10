@@ -17,6 +17,7 @@ import gm.dto.UserDetailDto;
 import gm.dto.UserDto;
 import okhttp3.Call;
 import okhttp3.Callback;
+import okhttp3.Dispatcher;
 import okhttp3.FormBody;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -73,6 +74,8 @@ public final class MarketServer {
     private static final Type TRADES = new TypeToken<List<TradeDto>>() { }.getType();
     private static final MediaType XML = MediaType.parse("text/xml");
     private static final RequestBody NOTHING = RequestBody.create(new byte[0], null);
+    /** Every pull the client keeps going, with plenty of room left for what the user does meanwhile. */
+    private static final int REQUESTS_AT_ONCE = 16;
 
     private final String address;
     private final Executor deliverOn;
@@ -88,10 +91,23 @@ public final class MarketServer {
         this.address = address;
         this.deliverOn = deliverOn;
         this.http = new OkHttpClient.Builder()
+                .dispatcher(roomForEveryPull())
                 .cookieJar(cookies)
                 .connectTimeout(3, TimeUnit.SECONDS)
                 .readTimeout(20, TimeUnit.SECONDS)
                 .build();
+    }
+
+    /**
+     * OkHttp lets only five requests to one server run at once unless told otherwise. The client keeps
+     * six pulls going at the same server, so without more room one pull would always wait, and a click
+     * of the user's would queue behind them all; the screen thread is never blocked either way, but the
+     * user's action would be slower than it has to be.
+     */
+    private static Dispatcher roomForEveryPull() {
+        Dispatcher dispatcher = new Dispatcher();
+        dispatcher.setMaxRequestsPerHost(REQUESTS_AT_ONCE);
+        return dispatcher;
     }
 
     public String address() {

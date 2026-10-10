@@ -1,7 +1,7 @@
 @echo off
 rem ---------------------------------------------------------------------------
 rem  Developer script. NOT part of the submission.
-rem  Compiles the engine, the client and their tests, then runs them with the
+rem  Compiles the engine, the server, the client and their tests, then runs them with the
 rem  JUnit 5 console.
 rem
 rem  The client's tests of its conversation with a real server run only when a
@@ -17,6 +17,7 @@ set OUT=%ROOT%out\test
 set JUNIT=%ROOT%tools\junit-platform-console-standalone.jar
 set FX=%ROOT%lib\javafx\lib
 set GSON=%ROOT%lib\gson\gson-2.14.0.jar
+set SERVLET=%ROOT%lib\servlet\jakarta.servlet-api-6.0.0.jar
 set OKHTTP=
 for %%J in (okhttp-4.9.1.jar okio-2.8.0.jar kotlin-stdlib-1.4.10.jar kotlin-stdlib-common-1.4.10.jar annotations-13.0.jar) do (
     set "OKHTTP=!OKHTTP!;%ROOT%lib\okhttp\%%J"
@@ -57,7 +58,10 @@ call :listSources "%ROOT%engine\src" "%TEMP%\gm-test-sources.txt"
 %JAVAC% %JAVAC_FLAGS% -cp "%OUT%\dto" -d "%OUT%\engine" "@%TEMP%\gm-test-sources.txt"
 if errorlevel 1 exit /b 1
 
-echo [2/4] Compiling the client...
+echo [2/4] Compiling the server and the client...
+call :listSources "%ROOT%server\src" "%TEMP%\gm-test-sources.txt"
+%JAVAC% %JAVAC_FLAGS% -Xlint:-serial,-classfile -cp "%OUT%\dto;%OUT%\engine;%GSON%;%SERVLET%" -d "%OUT%\server" "@%TEMP%\gm-test-sources.txt"
+if errorlevel 1 exit /b 1
 call :listSources "%ROOT%client\src" "%TEMP%\gm-test-sources.txt"
 %JAVAC% %JAVAC_FLAGS% --module-path "%FX%" --add-modules javafx.controls,javafx.fxml -cp "%OUT%\dto;%GSON%%OKHTTP%" -d "%OUT%\client" "@%TEMP%\gm-test-sources.txt"
 if errorlevel 1 exit /b 1
@@ -66,12 +70,15 @@ echo [3/4] Compiling the tests...
 call :listSources "%ROOT%enginetest\src" "%TEMP%\gm-test-sources.txt"
 %JAVAC% %JAVAC_FLAGS% -cp "%OUT%\dto;%OUT%\engine;%JUNIT%" -d "%OUT%\enginetest" "@%TEMP%\gm-test-sources.txt"
 if errorlevel 1 exit /b 1
+call :listSources "%ROOT%servertest\src" "%TEMP%\gm-test-sources.txt"
+%JAVAC% %JAVAC_FLAGS% -cp "%OUT%\dto;%OUT%\engine;%OUT%\server;%JUNIT%" -d "%OUT%\servertest" "@%TEMP%\gm-test-sources.txt"
+if errorlevel 1 exit /b 1
 call :listSources "%ROOT%clienttest\src" "%TEMP%\gm-test-sources.txt"
 %JAVAC% %JAVAC_FLAGS% --module-path "%FX%" --add-modules javafx.controls,javafx.fxml -cp "%OUT%\dto;%OUT%\client;%GSON%%OKHTTP%;%JUNIT%" -d "%OUT%\clienttest" "@%TEMP%\gm-test-sources.txt"
 if errorlevel 1 exit /b 1
 
 echo [4/4] Running tests...
-%JAVA% -Dgm.testfiles="%ROOT%test-files" %SERVER_FLAG% --module-path "%FX%" --add-modules javafx.controls,javafx.fxml -jar "%JUNIT%" execute --class-path "%OUT%\dto;%OUT%\engine;%OUT%\enginetest;%OUT%\client;%OUT%\clienttest;%ROOT%client\resources;%GSON%%OKHTTP%" --scan-class-path "%OUT%\enginetest" --scan-class-path "%OUT%\clienttest" --details=tree --disable-ansi-colors
+%JAVA% -Dgm.testfiles="%ROOT%test-files" %SERVER_FLAG% --module-path "%FX%" --add-modules javafx.controls,javafx.fxml -jar "%JUNIT%" execute --class-path "%OUT%\dto;%OUT%\engine;%OUT%\enginetest;%OUT%\server;%OUT%\servertest;%SERVLET%;%OUT%\client;%OUT%\clienttest;%ROOT%client\resources;%GSON%%OKHTTP%" --scan-class-path "%OUT%\enginetest" --scan-class-path "%OUT%\servertest" --scan-class-path "%OUT%\clienttest" --details=tree --disable-ansi-colors
 exit /b %ERRORLEVEL%
 
 :listSources
