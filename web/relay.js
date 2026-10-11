@@ -13,6 +13,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import { pipeline } from 'node:stream';
 
 const TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -36,7 +37,11 @@ export function createRelay({ server, publicDir }) {
     return http.createServer((request, response) => {
         const pathname = request.url.split('?')[0];
         if (pathname === apiBase || pathname.startsWith(`${apiBase}/`)) {
-            pass(request, response);
+            if (staysInside(pathname)) {
+                pass(request, response);
+            } else {
+                notFound(response);
+            }
         } else if (request.method !== 'GET' && request.method !== 'HEAD') {
             json(response, 405, { message: "Only the server's API accepts anything but reading.", problems: [] });
         } else if (pathname === '/config.json') {
@@ -56,7 +61,13 @@ export function createRelay({ server, publicDir }) {
             autoSelectFamily: true,
         }, reply => {
             response.writeHead(reply.statusCode, withoutHopByHop(reply.headers));
-            reply.pipe(response);
+            // An answer Tomcat breaks off is broken off for the browser too; a plain pipe would leave
+            // the browser waiting for the rest for ever.
+            pipeline(reply, response, broken => {
+                if (broken) {
+                    response.destroy();
+                }
+            });
         });
         upstream.on('error', () => {
             if (response.headersSent) {
@@ -106,6 +117,24 @@ export function createRelay({ server, publicDir }) {
             fs.createReadStream(file).on('error', () => response.destroy()).pipe(response);
         });
     }
+}
+
+/**
+ * Whether a path under the context path stays there. Tomcat folds "." and ".." segments — written
+ * plainly or percent-encoded — and drops ";" path parameters, so "/guess-market/..;/manager" would
+ * reach another application; the API never needs any of them.
+ */
+function staysInside(pathname) {
+    let decoded;
+    try {
+        decoded = decodeURIComponent(pathname);
+    } catch {
+        return false;
+    }
+    if (/[;\\\0]/.test(decoded)) {
+        return false;
+    }
+    return !decoded.split('/').some(segment => segment === '.' || segment === '..');
 }
 
 function withoutHopByHop(headers) {

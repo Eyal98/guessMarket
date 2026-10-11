@@ -14,6 +14,7 @@ import { createRelay } from './relay.js';
 
 const DEFAULT_SERVER = 'http://localhost:8080/guess-market';
 const DEFAULT_PORT = '3000';
+const LOOPBACK = '127.0.0.1';
 
 const given = process.argv.slice(2);
 const open = given.includes('--open');
@@ -32,7 +33,9 @@ relay.on('error', error => {
     stop(`The web client could not start: ${error.message}`);
 });
 
-relay.listen(port, () => {
+// This computer only: the page is opened here, and listening on every interface would put the market
+// on the local network and make Windows ask whether node.exe may pass the firewall.
+relay.listen(port, LOOPBACK, () => {
     const page = `http://localhost:${port}/`;
     console.log('Guess Market web client');
     console.log(`  Open:    ${page}`);

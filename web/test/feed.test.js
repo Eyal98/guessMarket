@@ -84,6 +84,23 @@ test('the server going away and coming back is told once each way', async () => 
     assert.deepEqual(told, [[false, 'Cannot reach the Guess Market server.'], [true, undefined]]);
 });
 
+// Logging out stops the feed while an answer may still be on its way; delivered then, it would put
+// "Logged in as …" back over the login screen.
+test('a stopped feed tells nobody anything, and sends nothing more', async () => {
+    let calls = 0;
+    let release;
+    const feed = createFeed(fakeApi({ events: () => { calls += 1; return new Promise(resolve => { release = resolve; }); } }), { timers: quietTimers });
+    const told = [];
+    feed.on('events', now => told.push(now));
+    feed.start();
+    feed.pullEverything();
+    feed.stop();
+    release([{ number: 9 }]); await settle();
+    feed.pullEverything(); await settle();
+    assert.deepEqual(told, []);
+    assert.equal(calls, 1);
+});
+
 test('a pull added from outside runs with the rest', async () => {
     const feed = createFeed(fakeApi(), { timers: quietTimers });
     let ran = 0;

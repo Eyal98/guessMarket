@@ -43,7 +43,10 @@ export function failureOf(status, bodyText) {
     return new Failure(status, `The server answered with status ${status}.`);
 }
 
-export function createApi(base, fetchImpl = (...args) => globalThis.fetch(...args)) {
+/** How long a request may take before it counts as unanswered, as OkHttp's default in the JavaFX client. */
+const PATIENCE_MS = 10000;
+
+export function createApi(base, fetchImpl = (...args) => globalThis.fetch(...args), { timeoutMs = PATIENCE_MS } = {}) {
     const url = (path, parameters = {}) => {
         const query = new URLSearchParams(parameters).toString();
         return `${base}/${path}${query ? `?${query}` : ''}`;
@@ -51,15 +54,21 @@ export function createApi(base, fetchImpl = (...args) => globalThis.fetch(...arg
 
     async function send(method, path, parameters, body) {
         let response;
+        let text;
         try {
             response = await fetchImpl(url(path, parameters), {
                 method, body, credentials: 'same-origin', headers: { Accept: 'application/json' },
+                signal: AbortSignal.timeout(timeoutMs),
             });
-        } catch {
+            text = await response.text();
+        } catch (cause) {
+            if (cause?.name === 'TimeoutError' || cause?.name === 'AbortError') {
+                throw new Failure(UNREACHABLE, `The Guess Market server did not answer within ${timeoutMs / 1000}`
+                    + ' seconds.');
+            }
             throw new Failure(UNREACHABLE, 'The web client cannot reach its own relay. Please check that the'
                 + ' window start.bat opened is still running.');
         }
-        const text = await response.text();
         if (!response.ok) {
             throw failureOf(response.status, text);
         }

@@ -3,7 +3,7 @@
  * I stand in every event, my part in the chosen one, and the means of acting on it (AccountController,
  * without uploading a file, as exercise 4 asks).
  */
-import { el, section, wrapping, labelled } from './dom.js';
+import { el, section, wrapping, labelled, oneAtATime } from './dom.js';
 import { createTable, staticTable, col, num, statusTone, moneyTone } from './table.js';
 import { money, signedMoney, moneyOrNothing, shares } from './format.js';
 import { Failure } from './api.js';
@@ -72,10 +72,12 @@ export function createAccountTab({ api, feed, messenger }) {
         ledger.show(all);
         ledger.scrollToEnd();
     });
-    load.addEventListener('click', deposit);
+    // The button and Enter both load money, and neither may do it twice while the first is on its way.
+    const depositOnce = oneAtATime(deposit);
+    load.addEventListener('click', () => depositOnce());
     amount.addEventListener('keydown', event => {
         if (event.key === 'Enter') {
-            deposit();
+            depositOnce();
         }
     });
     ledger.show(feed.ledger);

@@ -24,6 +24,27 @@ export function el(tag, props = {}, ...children) {
     return node;
 }
 
+/**
+ * An action that cannot start again while it is still under way. A disabled button already refuses a
+ * second click, but Enter in a field — held down, it repeats — goes around the button.
+ */
+export function oneAtATime(task) {
+    let underway = null;
+    return (...args) => {
+        if (underway) {
+            return underway;
+        }
+        let started;
+        try {
+            started = Promise.resolve(task(...args));
+        } catch (mistake) {
+            started = Promise.reject(mistake);
+        }
+        underway = started.finally(() => { underway = null; });
+        return underway;
+    };
+}
+
 /** Views.section. */
 export const section = title => el('h3', { class: 'section-title', text: title });
 

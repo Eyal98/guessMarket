@@ -2,7 +2,7 @@
  * The chat room of exercise 3's bonus, kept in the web client: everybody sees what everybody writes,
  * pulled from the server as a delta like the account's lines (ChatController).
  */
-import { el, section } from './dom.js';
+import { el, section, oneAtATime } from './dom.js';
 import { chatLineText } from './market.js';
 
 export function createChatTab({ api, feed, messenger }) {
@@ -11,8 +11,8 @@ export function createChatTab({ api, feed, messenger }) {
     const send = el('button', { type: 'submit', class: 'primary-button', text: 'Send' });
     const writing = el('form', { class: 'row chat-writing' }, message, send);
 
-    writing.addEventListener('submit', async event => {
-        event.preventDefault();
+    // Enter submits the form even while Send is disabled, so a held Enter must not say it twice.
+    const sendOnce = oneAtATime(async () => {
         if (!message.value.trim()) {
             return;
         }
@@ -27,6 +27,10 @@ export function createChatTab({ api, feed, messenger }) {
             send.disabled = false;
             message.focus();
         }
+    });
+    writing.addEventListener('submit', event => {
+        event.preventDefault();
+        sendOnce();
     });
     feed.on('chat', show);
     show(feed.chat);

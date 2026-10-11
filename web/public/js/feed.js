@@ -20,10 +20,16 @@ export function createFeed(api, { onSessionLost = () => {}, timers = globalThis 
     const pulls = [];
     let timer = null;
     let running = false;
+    /** Once stopped, a feed is done: answers still on their way are dropped, nothing more is sent. */
+    let stopped = false;
     let reachable = true;
     const cutOff = new Set();
 
-    const tell = (topic, ...values) => listeners[topic].forEach(listener => listener(...values));
+    const tell = (topic, ...values) => {
+        if (!stopped) {
+            listeners[topic].forEach(listener => listener(...values));
+        }
+    };
 
     function publish(topic, fresh) {
         const json = JSON.stringify(fresh);
@@ -88,6 +94,9 @@ export function createFeed(api, { onSessionLost = () => {}, timers = globalThis 
         let underway = false;
         let askedAgain = false;
         return function run() {
+            if (stopped) {
+                return;
+            }
             if (underway) {
                 askedAgain = true;
                 return;
@@ -121,6 +130,7 @@ export function createFeed(api, { onSessionLost = () => {}, timers = globalThis 
 
     function stop() {
         running = false;
+        stopped = true;
         if (timer !== null) {
             timers.clearInterval(timer);
             timer = null;

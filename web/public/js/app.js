@@ -10,7 +10,7 @@ import { tabbed } from './dom.js';
 import { createEventsTab } from './events.js';
 import { createAccountTab } from './account.js';
 import { createChatTab } from './chat.js';
-import { remember, forget, remembered, logOutWhenLeaving } from './session.js';
+import { remember, forget, remembered, logOutWhenLeaving, maySilentlyReenter, reentryRefusal } from './session.js';
 
 const SESSION_ENDED = 'The server no longer knows this session; it may have been restarted. Please log in again.';
 
@@ -19,6 +19,8 @@ let api = null;
 let serverAddress = '';
 let feed = null;
 let reloggedOnce = false;
+/** Set once this page has had a working session; from then on a lost session asks for the name again. */
+let settled = false;
 
 start();
 
@@ -38,7 +40,7 @@ async function start() {
     try {
         enter(await api.account());
     } catch (failure) {
-        if (failure.sessionLost && remembered()) {
+        if (failure.sessionLost && maySilentlyReenter({ remembered: remembered(), alreadyTried: reloggedOnce, settled })) {
             await reenter();
         } else {
             login(failure.sessionLost ? '' : failure.message, remembered() ?? '');
@@ -55,7 +57,10 @@ function enter(me) {
     remember(me.name);
     leaveMarket();
     feed = createFeed(api, { onSessionLost: sessionLost });
-    feed.on('me', now => shell.showUser(now));
+    feed.on('me', now => {
+        settled = true;
+        shell.showUser(now);
+    });
     feed.on('reachable', (ok, failure) => shell.reachable(ok, failure?.message));
     shell.main.replaceChildren(marketScreens(feed).element);
     shell.showUser(me);
@@ -81,7 +86,7 @@ function leaveMarket() {
     shell.reachable(true);
 }
 
-/** Logs back in as the name this tab remembers — once per page, which covers a late logout beacon. */
+/** Logs back in as the name this tab remembers, for the one race a reload's logout beacon can cause. */
 async function reenter() {
     const name = remembered();
     reloggedOnce = true;
@@ -89,7 +94,7 @@ async function reenter() {
         enter(await api.login(name));
     } catch (failure) {
         forget();
-        login(failure.unreachable ? failure.message : SESSION_ENDED, name);
+        login(reentryRefusal(failure, SESSION_ENDED), name);
     }
 }
 
@@ -98,7 +103,7 @@ function sessionLost() {
         return;
     }
     leaveMarket();
-    if (remembered() && !reloggedOnce) {
+    if (maySilentlyReenter({ remembered: remembered(), alreadyTried: reloggedOnce, settled })) {
         reenter();
         return;
     }

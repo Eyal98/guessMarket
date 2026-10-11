@@ -75,6 +75,18 @@ test('401 means the session is gone, 502 and a dead connection mean the server c
     assert.match(gone.message, /start\.bat/);
 });
 
+// The feed sends one request of each kind at a time, so one that never ends would freeze that kind
+// for good. The JavaFX client's OkHttp gives up after ten seconds; so does the page.
+test('a request that gets no answer gives up, as unreachable', { timeout: 3000 }, async () => {
+    const silent = (url, init) => new Promise((resolve, reject) => {
+        init.signal?.addEventListener('abort', () => reject(init.signal.reason));
+    });
+    const failure = await createApi('/gm', silent, { timeoutMs: 50 }).events().catch(caught => caught);
+    assert.ok(failure instanceof Failure);
+    assert.equal(failure.unreachable, true);
+    assert.match(failure.message, /did not answer/);
+});
+
 test('an answer that is not ours is described by its status', () => {
     assert.equal(failureOf(500, '<html>oops</html>').message, 'The server answered with status 500.');
     assert.equal(failureOf(404, '').message, 'The server answered with status 404.');

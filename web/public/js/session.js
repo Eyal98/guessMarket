@@ -28,6 +28,21 @@ export function remembered() {
     try { return storage()?.getItem(KEY) ?? null; } catch { return null; }
 }
 
+/**
+ * Whether a lost session may be recovered without asking. A reload's own logout beacon can reach the
+ * server just after the reloaded page logged back in; that race is the only reason, so it is allowed
+ * once, and only before the page has had a working session. Any later loss — Tomcat restarted, the
+ * session timed out — goes back to the login screen, as in the JavaFX client.
+ */
+export function maySilentlyReenter({ remembered: name, alreadyTried, settled }) {
+    return Boolean(name) && !alreadyTried && !settled;
+}
+
+/** What the login screen says when logging back in by itself failed: the server's own reason. */
+export function reentryRefusal(failure, sessionEnded) {
+    return failure.sessionLost ? sessionEnded : failure.message;
+}
+
 export function logOutWhenLeaving(logoutUrl) {
     window.addEventListener('pagehide', () => {
         if (remembered()) {

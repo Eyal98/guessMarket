@@ -12,7 +12,10 @@ let base;
 let seen;
 
 const listen = server => new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-const close = server => new Promise(resolve => server.close(resolve));
+const close = server => new Promise(resolve => {
+    server.close(resolve);
+    server.closeAllConnections();
+});
 
 /** A request sent exactly as written, without the URL normalising fetch would do. */
 function raw(method, requestPath) {
@@ -33,6 +36,13 @@ before(async () => {
         let body = '';
         request.on('data', chunk => { body += chunk; });
         request.on('end', () => {
+            if (request.url.startsWith('/guess-market/broken')) {
+                // An answer that breaks off half way: it promises 100 bytes and the connection dies.
+                response.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': '100' });
+                response.write('{"partial":');
+                setTimeout(() => request.socket.destroy(), 20);
+                return;
+            }
             seen = { method: request.method, url: request.url, body, cookie: request.headers.cookie };
             response.writeHead(201, { 'Content-Type': 'application/json', 'Set-Cookie': 'JSESSIONID=abc; Path=/guess-market; HttpOnly' });
             response.end('{"ok":true}');
@@ -81,10 +91,38 @@ test('nothing outside the public folder is ever served', async () => {
     }
 });
 
+// Tomcat folds "..", its encoded forms and ";" path parameters into other applications (its manager,
+// for one); only Guess Market's own API is the relay's to pass on.
+test('a path that climbs out of the API is never passed to Tomcat', async () => {
+    for (const sneaky of ['/guess-market/../manager/html', '/guess-market/%2e%2e/manager/html',
+        '/guess-market/..;/manager/html', '/guess-market/.%2e/manager/html', '/guess-market/events;x=1',
+        '/guess-market/./events', '/guess-market/..%5cmanager']) {
+        seen = null;
+        assert.equal((await raw('GET', sneaky)).status, 404, sneaky);
+        assert.equal(seen, null, sneaky);
+    }
+    seen = null;
+    await raw('GET', '/guess-market/events?after=..');
+    assert.equal(seen?.url, '/guess-market/events?after=..');
+});
+
 test('a path that only starts like the API is not passed through', async () => {
     seen = null;
     assert.equal((await raw('GET', '/guess-marketing')).status, 404);
     assert.equal(seen, null);
+});
+
+test('an answer Tomcat breaks off is broken off for the browser too, not left hanging', { timeout: 3000 }, async () => {
+    const ended = await new Promise(resolve => {
+        const request = http.get({ host: '127.0.0.1', port: relay.address().port, path: '/guess-market/broken' }, reply => {
+            reply.on('data', () => {});
+            reply.on('end', () => resolve('ended'));
+            reply.on('error', () => resolve('cut'));
+            reply.on('aborted', () => resolve('cut'));
+        });
+        request.on('error', () => resolve('cut'));
+    });
+    assert.equal(ended, 'cut');
 });
 
 test('only reading is allowed outside the API', async () => {
