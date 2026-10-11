@@ -8,6 +8,7 @@ import { createShell } from './shell.js';
 import { showLogin } from './login.js';
 import { el, tabbed } from './dom.js';
 import { createEventsTab } from './events.js';
+import { createAccountTab } from './account.js';
 import { remember, forget, remembered, logOutWhenLeaving } from './session.js';
 
 const SESSION_ENDED = 'The server no longer knows this session; it may have been restarted. Please log in again.';
@@ -65,7 +66,7 @@ function marketScreens(feedOfThisLogin) {
     const parts = { api, feed: feedOfThisLogin, messenger: shell.messenger };
     return tabbed([
         { name: 'Events', element: createEventsTab(parts).element },
-        { name: 'Account', element: el('div') },
+        { name: 'Account', element: createAccountTab(parts).element },
         { name: 'Chat', element: el('div') },
     ]);
 }

@@ -63,7 +63,7 @@ input.price { width: 6em; }
 /* Panes */
 .split { display: grid; height: 100%; }
 .events-split { grid-template-columns: minmax(0, 48fr) minmax(0, 52fr); }
-.account-split { grid-template-columns: minmax(0, 34fr) minmax(0, 66fr); }
+.account-split { grid-template-columns: minmax(0, 40fr) minmax(0, 60fr); }
 .pane { padding: 16px 20px; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
 .split > .pane + .pane { border-left: 1px solid var(--line); background: var(--surface-2); }
 @media (max-width: 900px) {
@@ -84,7 +84,7 @@ table.grid { border-collapse: collapse; width: 100%; }
 table.grid th { position: sticky; top: 0; z-index: 1; background: var(--white); text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 10px 12px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 table.grid td { padding: 9px 12px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
 table.grid tr:last-child td { border-bottom: none; }
-table.grid td.wrap { white-space: normal; overflow-wrap: anywhere; min-width: 12em; }
+table.grid td.wrap { white-space: normal; overflow-wrap: anywhere; min-width: 9em; }
 table.grid .num { text-align: right; }
 table.grid tr.selectable { cursor: pointer; }
 table.grid tr.selectable:hover td { background: var(--surface-2); }

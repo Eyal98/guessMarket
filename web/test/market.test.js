@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
     ALL, passesFilters, eventsSummary, commissionOf, rolesOf, roleName, holdingSummary, othersThan,
     justBlocked, tradeSituation, describeOpening, describeClosing, describePurchase, describeSale,
-    describeOrder, describeDeposit, parseQuantity, parsePrice, parseAmount, chatLineText,
+    describeOrder, describeDeposit, parseQuantity, parsePrice, parseAmount, chatLineText, isDecided,
 } from '../public/js/market.js';
 
 const event = (fields = {}) => ({
@@ -98,6 +98,14 @@ test('a price and an amount must be numbers, and the server judges the rest', ()
     assert.equal(parseAmount('lots').problem, '"lots" is not an amount. Please type a number, such as 500.');
     assert.ok(parseAmount('  ').problem);
     assert.ok(parseAmount('0x10').problem);
+});
+
+test('an event is decided only once it has a winner, however the server leaves the winner out', () => {
+    const undecided = event();
+    delete undecided.winningOptionName; // Gson leaves null fields out of its JSON altogether
+    assert.equal(isDecided(undecided), false);
+    assert.equal(isDecided(event({ winningOptionName: null })), false);
+    assert.equal(isDecided(event({ status: 'Closed', winningOptionName: 'Yes' })), true);
 });
 
 test('a chat line reads time, name, text', () => {

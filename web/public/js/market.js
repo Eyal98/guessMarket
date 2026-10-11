@@ -59,6 +59,14 @@ export function holdingSummary({ holding }) {
     return holding.options.map(option => `${option.optionName} ${shares(option.shares)}`).join(', ');
 }
 
+/**
+ * Whether an event has been decided. The server writes JSON with Gson, which leaves a null field out
+ * altogether, so an undecided event has no winningOptionName at all rather than a null one.
+ */
+export function isDecided(event) {
+    return event.winningOptionName !== null && event.winningOptionName !== undefined;
+}
+
 export function othersThan(users, me) {
     return users.filter(user => me === null || user.name !== me.name);
 }
