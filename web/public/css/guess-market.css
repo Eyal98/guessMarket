@@ -1,0 +1,149 @@
+/*
+  The look of the web client, after polymarket.com: white surfaces, near-black type, one strong blue,
+  green and red tints for buying and selling, pills for filters and rounded cards for what belongs
+  together. What sits where follows the JavaFX client, screen for screen.
+
+  The two panes of a tab sit side by side on a wide window and one under the other on a narrow one;
+  tables scroll inside their pane, never the page.
+*/
+:root {
+    --ink: #23272d; --ink-2: #454a52; --muted: #6b727b; --faint: #9aa1aa;
+    --surface: #f4f5f7; --surface-2: #f7f8fa; --line: #e6e8eb; --line-soft: #f0f1f3; --white: #fff;
+    --blue: #2e5cff; --blue-hover: #1f4be6; --blue-tint: #eef2ff;
+    --up: #007e26; --up-tint: #d9f0e2; --up-hover: #c6e8d3;
+    --down: #df0c10; --down-tint: #fce9e9; --down-hover: #f8d6d6;
+    --waiting: #b26a00;
+    --radius: 10px; --radius-card: 12px;
+    font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 14px; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { display: flex; flex-direction: column; background: var(--white); }
+[hidden] { display: none !important; }
+h1, h2, h3, h4, p { margin: 0; }
+
+/* Top bar */
+.header { display: flex; align-items: center; gap: 8px 16px; padding: 10px 20px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.brand-mark { width: 26px; height: 26px; fill: none; stroke: var(--blue); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.brand-mark rect { fill: var(--blue-tint); }
+.app-title { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.who { display: flex; gap: 12px; align-items: center; color: var(--muted); flex-wrap: wrap; }
+.header-balance { font-weight: 600; color: var(--ink); background: var(--surface); padding: 6px 12px; border-radius: 999px; }
+.banner { background: var(--down-tint); color: var(--down); padding: 8px 20px; font-weight: 600; }
+main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.status-bar { border-top: 1px solid var(--line); color: var(--ink-2); padding: 8px 20px; min-height: 2.4em; font-size: 13px; overflow-wrap: anywhere; }
+
+/* Controls */
+button { font: inherit; font-weight: 600; height: 36px; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); color: var(--ink); cursor: pointer; transition: background-color .12s, border-color .12s; }
+button:hover:not(:disabled) { background: var(--surface); }
+button:disabled { opacity: .5; cursor: default; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.primary-button { background: var(--blue); color: var(--white); border-color: var(--blue); }
+.primary-button:hover:not(:disabled) { background: var(--blue-hover); }
+.buy-button { background: var(--up-tint); color: var(--up); border-color: transparent; }
+.buy-button:hover:not(:disabled) { background: var(--up-hover); }
+.sell-button { background: var(--down-tint); color: var(--down); border-color: transparent; }
+.sell-button:hover:not(:disabled) { background: var(--down-hover); }
+input, select { font: inherit; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); color: var(--ink); }
+input.quantity { width: 7em; }
+input.price { width: 6em; }
+
+/* Tabs, like Polymarket's category bar */
+.tabbed { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.tabs { display: flex; gap: 20px; padding: 0 20px; border-bottom: 1px solid var(--line); }
+.tab { height: 44px; padding: 0; border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--muted); font-size: 15px; }
+.tab:hover:not(:disabled) { background: none; color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.tab-panels { flex: 1; min-height: 0; }
+.tab-panel { height: 100%; }
+
+/* Panes */
+.split { display: grid; height: 100%; }
+.events-split { grid-template-columns: minmax(0, 48fr) minmax(0, 52fr); }
+.account-split { grid-template-columns: minmax(0, 34fr) minmax(0, 66fr); }
+.pane { padding: 16px 20px; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.split > .pane + .pane { border-left: 1px solid var(--line); background: var(--surface-2); }
+@media (max-width: 900px) {
+    .events-split, .account-split { grid-template-columns: minmax(0, 1fr); height: auto; }
+    .split > .pane + .pane { border-left: none; border-top: 1px solid var(--line); }
+    .tab-panels { overflow: auto; }
+    .pane { overflow: visible; }
+}
+
+/* Cards */
+.card { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
+
+/* Tables */
+.table-wrap { overflow: auto; border: 1px solid var(--line); background: var(--white); border-radius: var(--radius-card); max-height: 22em; flex-shrink: 0; }
+.table-wrap.grow { flex: 1 1 12em; max-height: none; }
+table.grid { border-collapse: collapse; width: 100%; }
+table.grid th { position: sticky; top: 0; z-index: 1; background: var(--white); text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 10px 12px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.grid td { padding: 9px 12px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+table.grid tr:last-child td { border-bottom: none; }
+table.grid td.wrap { white-space: normal; overflow-wrap: anywhere; min-width: 12em; }
+table.grid .num { text-align: right; }
+table.grid tr.selectable { cursor: pointer; }
+table.grid tr.selectable:hover td { background: var(--surface-2); }
+table.grid tr.selected td { background: var(--blue-tint); }
+table.grid tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--blue); }
+table.grid td.placeholder { color: var(--muted); text-align: center; padding: 20px; white-space: normal; }
+td.tone-up { color: var(--up); font-weight: 600; }
+td.tone-down { color: var(--down); font-weight: 600; }
+td.tone-live { color: var(--up); font-weight: 600; }
+td.tone-waiting { color: var(--waiting); font-weight: 600; }
+td.tone-closed { color: var(--muted); font-weight: 600; }
+
+/* Type */
+.detail-title { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.section-title { font-size: 16px; font-weight: 600; margin-top: 8px; }
+.option-title { font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.caption, .summary, .filter-caption { color: var(--muted); }
+.small { font-size: 12px; }
+.problem { color: var(--down); }
+.balance { font-size: 20px; font-weight: 600; }
+.labelled { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 18px; }
+.labelled dt { color: var(--muted); }
+.labelled dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.wrapping { overflow-wrap: anywhere; line-height: 1.45; }
+hr { border: none; border-top: 1px solid var(--line); width: 100%; margin: 4px 0; }
+.stack { display: flex; flex-direction: column; gap: 8px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.spacer { flex: 1; }
+
+/* Filters, as pills */
+.filters { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+.filter-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.filter-caption { font-size: 12px; font-weight: 600; margin-right: 2px; }
+.toggle { height: 32px; padding: 0 12px; border: none; border-radius: 999px; background: var(--surface); font-size: 13px; }
+.toggle:hover:not(:disabled) { background: var(--line); }
+.toggle[aria-pressed="true"] { background: var(--ink); color: var(--white); }
+
+/* The trade panel, like Polymarket's trade card */
+.trade-panel { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.books { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1100px) { .books { grid-template-columns: minmax(0, 1fr); } }
+.option-book { padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.option-book .table-wrap { max-height: 12em; }
+
+/* Login */
+.login-page { flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--surface-2); }
+.login-card { padding: 28px; width: min(440px, 100%); display: flex; flex-direction: column; gap: 14px; }
+.login-card .row input { flex: 1; min-width: 0; }
+
+/* Chat */
+.chat { height: 100%; }
+.chat-lines { list-style: none; margin: 0; padding: 8px 12px; flex: 1 1 10em; overflow: auto; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-card); }
+.chat-lines li { padding: 6px 0; border-bottom: 1px solid var(--line-soft); overflow-wrap: anywhere; white-space: pre-wrap; }
+.chat-lines li:last-child { border-bottom: none; }
+.chat-lines li.placeholder { color: var(--muted); }
+.chat-writing input { flex: 1; min-width: 0; }
+
+/* The warning dialog */
+.warning { padding: 22px 24px; max-width: min(520px, calc(100vw - 32px)); color: var(--ink); }
+.warning h2 { margin-bottom: 8px; font-size: 18px; font-weight: 600; }
+.warning p { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink-2); line-height: 1.45; }
+.dialog-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
+.warning::backdrop { background: rgba(20, 24, 31, .4); }
