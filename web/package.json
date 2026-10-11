@@ -1,0 +1,10 @@
+{
+  "name": "guess-market-web",
+  "private": true,
+  "type": "module",
+  "description": "The web client of Guess Market: static pages and a relay to the Tomcat server. It has no dependencies; nothing is ever installed.",
+  "scripts": {
+    "start": "node serve.js",
+    "test": "node --test"
+  }
+}
