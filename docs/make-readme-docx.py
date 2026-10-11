@@ -4,6 +4,10 @@ Run it after changing README.md, then run package.bat:
 
     python docs/make-readme-docx.py <identity-number>
 
+For exercise 4, whose readme is web/README.md:
+
+    python docs/make-readme-docx.py <identity-number> web/README.md docs/readme-web.docx
+
 The Word file is the one place the identity number appears. README.md lives in a public
 repository and must never carry it, which is why the number is passed in as an argument
 rather than stored anywhere. docs/readme.docx is gitignored for the same reason.
@@ -92,8 +96,8 @@ def looksLikeATable(source, index):
     return divider.startswith("|") and set(divider.replace("|", "").replace(":", "").strip()) <= {"-", " "}
 
 
-def build(identityNumber):
-    source = SOURCE.read_text(encoding="utf-8").splitlines()
+def build(identityNumber, source_path=SOURCE, target_path=TARGET):
+    source = source_path.read_text(encoding="utf-8").splitlines()
     document = Document()
     normal = document.styles["Normal"]
     normal.font.name = "Arial"
@@ -153,8 +157,8 @@ def build(identityNumber):
         index += 1
 
     stampIdentityNumber(document, identityNumber)
-    document.save(TARGET)
-    print("wrote", TARGET)
+    document.save(target_path)
+    print("wrote", target_path)
 
 
 def stampIdentityNumber(document, identityNumber):
@@ -170,6 +174,10 @@ def stampIdentityNumber(document, identityNumber):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2 or not sys.argv[1].isdigit():
-        raise SystemExit("usage: python docs/make-readme-docx.py <identity-number>")
-    build(sys.argv[1])
+    arguments = sys.argv[1:]
+    if len(arguments) not in (1, 3) or not arguments[0].isdigit():
+        raise SystemExit("usage: python docs/make-readme-docx.py <identity-number> [<source.md> <target.docx>]")
+    if len(arguments) == 1:
+        build(arguments[0])
+    else:
+        build(arguments[0], Path(arguments[1]).resolve(), Path(arguments[2]).resolve())

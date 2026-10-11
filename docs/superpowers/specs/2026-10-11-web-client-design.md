@@ -21,6 +21,9 @@ From the specification (`Guess Market - v3.docx`, section "תרגיל 4"):
 Decided with Eyal on 2026-10-11:
 
 - **Plain JavaScript** (ES modules), no framework and no build step.
+- **The look follows polymarket.com** (asked for during the build): white surfaces, one strong blue,
+  green and red tints for buying and selling, pill filters, rounded cards. The make-up of each screen
+  stays the JavaFX one.
 - **The chat of exercise 3 is kept** in the web client although the exercise does not require it.
 - **The ex4 zip carries the unchanged exercise 3 WAR**, so it can be checked on its own.
 
@@ -29,10 +32,10 @@ Decided with Eyal on 2026-10-11:
 Exercise 3 stays exactly as submitted: the server and its WAR, the engine, the DTOs, the JavaFX
 client, the 204 tests, `build.bat`, `test.bat`'s existing steps, `README.md`, the `ex3-submission`
 tag (`ce04b55`) and `dist\guess-market.zip`. Everything new lives under `web/`. The only shared files
-that grow are `package.bat` (a second, separate target whose ex3 output stays byte-for-byte the
-same), `test.bat` (an added step for the web tests), `docs/make-readme-docx.py` (optional
+that grow are `test.bat` (an added step for the web tests), `docs/make-readme-docx.py` (optional
 arguments for the second readme, its ex3 output unchanged) and `.gitignore` (the second docx, which
-carries the identity number, stays out of git like the first).
+carries the identity number, stays out of git like the first). The ex4 zip is built by a new `package-web.bat`; `package.bat`
+itself is not touched.
 
 ## 3. Architecture and running
 
@@ -111,8 +114,8 @@ browser is already logged in it skips the login.
 sends; the server's limit of 500 characters and its refusals show in the status line.
 
 **Layout** — CSS grid and flex: the two panes of a tab sit side by side when the window is wide and
-stack when it is narrow; tables scroll inside their pane, never the page. Colours follow
-`guess-market.css`.
+stack when it is narrow; tables scroll inside their pane, never the page. The colours and type
+follow polymarket.com (see §1).
 
 ## 5. Modules and data flow
 
@@ -167,7 +170,7 @@ server text is inserted as text (`textContent`), never as HTML.
 
 ## 7. Packaging and the readme
 
-`package.bat ex4` builds `dist\guess-market-web.zip`:
+`package-web.bat` builds `dist\guess-market-web.zip`:
 
 ```
 guess-market.war   the exercise 3 server, unchanged

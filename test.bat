@@ -50,7 +50,7 @@ if defined GM_SERVER set SERVER_FLAG=-Dgm.server=%GM_SERVER%
 
 if exist "%OUT%" rmdir /s /q "%OUT%"
 
-echo [1/4] Compiling the data objects and the engine...
+echo [1/5] Compiling the data objects and the engine...
 call :listSources "%ROOT%dto\src" "%TEMP%\gm-test-sources.txt"
 %JAVAC% %JAVAC_FLAGS% -d "%OUT%\dto" "@%TEMP%\gm-test-sources.txt"
 if errorlevel 1 exit /b 1
@@ -58,7 +58,7 @@ call :listSources "%ROOT%engine\src" "%TEMP%\gm-test-sources.txt"
 %JAVAC% %JAVAC_FLAGS% -cp "%OUT%\dto" -d "%OUT%\engine" "@%TEMP%\gm-test-sources.txt"
 if errorlevel 1 exit /b 1
 
-echo [2/4] Compiling the server and the client...
+echo [2/5] Compiling the server and the client...
 call :listSources "%ROOT%server\src" "%TEMP%\gm-test-sources.txt"
 %JAVAC% %JAVAC_FLAGS% -Xlint:-serial,-classfile -cp "%OUT%\dto;%OUT%\engine;%GSON%;%SERVLET%" -d "%OUT%\server" "@%TEMP%\gm-test-sources.txt"
 if errorlevel 1 exit /b 1
@@ -66,7 +66,7 @@ call :listSources "%ROOT%client\src" "%TEMP%\gm-test-sources.txt"
 %JAVAC% %JAVAC_FLAGS% --module-path "%FX%" --add-modules javafx.controls,javafx.fxml -cp "%OUT%\dto;%GSON%%OKHTTP%" -d "%OUT%\client" "@%TEMP%\gm-test-sources.txt"
 if errorlevel 1 exit /b 1
 
-echo [3/4] Compiling the tests...
+echo [3/5] Compiling the tests...
 call :listSources "%ROOT%enginetest\src" "%TEMP%\gm-test-sources.txt"
 %JAVAC% %JAVAC_FLAGS% -cp "%OUT%\dto;%OUT%\engine;%JUNIT%" -d "%OUT%\enginetest" "@%TEMP%\gm-test-sources.txt"
 if errorlevel 1 exit /b 1
@@ -77,9 +77,21 @@ call :listSources "%ROOT%clienttest\src" "%TEMP%\gm-test-sources.txt"
 %JAVAC% %JAVAC_FLAGS% --module-path "%FX%" --add-modules javafx.controls,javafx.fxml -cp "%OUT%\dto;%OUT%\client;%GSON%%OKHTTP%;%JUNIT%" -d "%OUT%\clienttest" "@%TEMP%\gm-test-sources.txt"
 if errorlevel 1 exit /b 1
 
-echo [4/4] Running tests...
+echo [4/5] Running tests...
 %JAVA% -Dgm.testfiles="%ROOT%test-files" %SERVER_FLAG% --module-path "%FX%" --add-modules javafx.controls,javafx.fxml -jar "%JUNIT%" execute --class-path "%OUT%\dto;%OUT%\engine;%OUT%\enginetest;%OUT%\server;%OUT%\servertest;%SERVLET%;%OUT%\client;%OUT%\clienttest;%ROOT%client\resources;%GSON%%OKHTTP%" --scan-class-path "%OUT%\enginetest" --scan-class-path "%OUT%\servertest" --scan-class-path "%OUT%\clienttest" --details=tree --disable-ansi-colors
-exit /b %ERRORLEVEL%
+set RESULT=%ERRORLEVEL%
+
+echo [5/5] Running the web client's tests...
+where node >nul 2>&1
+if errorlevel 1 (
+    echo Node.js was not found, so the web client's tests were skipped.
+    exit /b %RESULT%
+)
+pushd "%ROOT%web"
+node --test
+if errorlevel 1 set RESULT=1
+popd
+exit /b %RESULT%
 
 :listSources
 rem ---------------------------------------------------------------------------
