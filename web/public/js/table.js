@@ -15,7 +15,16 @@ export function keepSelection(rows, selectedKey, keyOf) {
     return rows.find(row => keyOf(row) === selectedKey) ?? null;
 }
 
-export const col = (title, value, { wrap = false, tone = null } = {}) => ({ title, value, wrap, tone });
+/**
+ * Whether fresh rows are the rows already shown with new values — same count, same keys, same order —
+ * so they can be written into the rows on the screen rather than replacing them.
+ */
+export function fillsInPlace(previous, fresh, keyOf) {
+    return previous.length === fresh.length && fresh.length > 0
+        && (!keyOf || fresh.every((each, i) => keyOf(each) === keyOf(previous[i])));
+}
+
+export const col =(title, value, { wrap = false, tone = null } = {}) => ({ title, value, wrap, tone });
 export const num = (title, value, { tone = null } = {}) => ({ title, value, numeric: true, tone });
 
 /** The tone of an event's status, for a column or a chip. */
@@ -41,29 +50,41 @@ export function createTable({ columns, keyOf = null, placeholder = '', onSelect 
         if (json === shownJson) {
             return;
         }
+        const sameRows = fillsInPlace(rows, fresh, keyOf);
         shownJson = json;
         rows = fresh;
         const kept = keepSelection(rows, selectedKey, keyOf);
         selectedKey = kept ? keyOf(kept) : null;
-        rowElements = rows.map(rowElement);
+        if (sameRows) {
+            // The same rows with new values - prices moving - are written into the rows already on the
+            // screen. Replacing them would swallow a click that happened to land in between.
+            rows.forEach((each, i) => fill(rowElements[i], each));
+            return;
+        }
+        rowElements = rows.map((each, i) => rowElement(i));
+        rows.forEach((each, i) => fill(rowElements[i], each));
         body.replaceChildren(...(rows.length > 0 ? rowElements
             : [el('tr', {}, el('td', { class: 'placeholder', colspan: String(columns.length), text: placeholder }))]));
     }
 
-    function rowElement(rowData) {
-        const selectable = keyOf !== null;
-        const tr = el('tr', { class: classes(selectable && 'selectable', selectable && keyOf(rowData) === selectedKey && 'selected') },
-            ...columns.map(column => {
-                const tone = column.tone ? column.tone(rowData) : null;
-                return el('td', {
-                    class: classes(column.numeric && 'num', column.wrap && 'wrap', tone && `tone-${tone}`),
-                    text: String(column.value(rowData) ?? ''),
-                });
-            }));
-        if (selectable) {
-            tr.addEventListener('click', () => choose(rowData));
+    function rowElement(index) {
+        const tr = el('tr', { class: keyOf ? 'selectable' : null }, ...columns.map(() => el('td')));
+        if (keyOf) {
+            tr.addEventListener('click', () => choose(rows[index]));
         }
         return tr;
+    }
+
+    function fill(tr, rowData) {
+        if (keyOf) {
+            tr.classList.toggle('selected', keyOf(rowData) === selectedKey);
+        }
+        columns.forEach((column, i) => {
+            const cell = tr.cells[i];
+            const tone = column.tone ? column.tone(rowData) : null;
+            cell.className = classes(column.numeric && 'num', column.wrap && 'wrap', tone && `tone-${tone}`) ?? '';
+            cell.textContent = String(column.value(rowData) ?? '');
+        });
     }
 
     function choose(rowData) {

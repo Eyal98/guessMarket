@@ -29,7 +29,7 @@ h1, h2, h3, h4, p { margin: 0; }
 .brand { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .brand-mark { width: 26px; height: 26px; fill: none; stroke: var(--blue); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
 .brand-mark rect { fill: var(--blue-tint); }
-.app-title { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.app-title { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; }
 .who { display: flex; gap: 12px; align-items: center; color: var(--muted); flex-wrap: wrap; }
 .header-balance { font-weight: 600; color: var(--ink); background: var(--surface); padding: 6px 12px; border-radius: 999px; }
 .banner { background: var(--down-tint); color: var(--down); padding: 8px 20px; font-weight: 600; }
@@ -71,6 +71,7 @@ input.price { width: 6em; }
     .split > .pane + .pane { border-left: none; border-top: 1px solid var(--line); }
     .tab-panels { overflow: auto; }
     .pane { overflow: visible; }
+    .table-wrap.grow { flex: none; max-height: 22em; }
 }
 
 /* Cards */
