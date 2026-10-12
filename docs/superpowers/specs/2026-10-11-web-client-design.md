@@ -21,9 +21,11 @@ From the specification (`Guess Market - v3.docx`, section "תרגיל 4"):
 Decided with Eyal on 2026-10-11:
 
 - **Plain JavaScript** (ES modules), no framework and no build step.
-- **The look follows polymarket.com** (asked for during the build): white surfaces, one strong blue,
-  green and red tints for buying and selling, pill filters, rounded cards. The make-up of each screen
-  stays the JavaFX one.
+- **The look blends the JavaFX client with polymarket.com** (Polymarket asked for during the build; the
+  blend decided at the requirements check, since the events screen must look like the JavaFX one): the
+  JavaFX colours — navy bar, navy and blue titles, grey desk and status line — drawn Polymarket's way,
+  with white rounded cards, pill filters and green and red tints for buying and selling. The make-up of
+  each screen stays the JavaFX one.
 - **The chat of exercise 3 is kept** in the web client although the exercise does not require it.
 - **The ex4 zip carries the unchanged exercise 3 WAR**, so it can be checked on its own.
 
@@ -114,8 +116,8 @@ browser is already logged in it skips the login.
 sends; the server's limit of 500 characters and its refusals show in the status line.
 
 **Layout** — CSS grid and flex: the two panes of a tab sit side by side when the window is wide and
-stack when it is narrow; tables scroll inside their pane, never the page. The colours and type
-follow polymarket.com (see §1).
+stack when it is narrow; tables scroll inside their pane, never the page. The colours are the JavaFX
+client's, drawn the Polymarket way (see §1).
 
 ## 5. Modules and data flow
 
@@ -174,6 +176,7 @@ server text is inserted as text (`textContent`), never as HTML.
 
 ```
 guess-market.war   the exercise 3 server, unchanged
+client\            the exercise 3 JavaFX client, unchanged, to upload events files with
 web\               start.bat, serve.js, public\
 readme.docx        how to run, the exact URL (http://localhost:3000/), the classes, the AI work
 sample-files\      the ex3 event files, for a JavaFX client to upload and the web client to show

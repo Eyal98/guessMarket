@@ -1,15 +1,17 @@
 /*
-  The look of the web client, after polymarket.com: white surfaces, near-black type, one strong blue,
-  green and red tints for buying and selling, pills for filters and rounded cards for what belongs
-  together. What sits where follows the JavaFX client, screen for screen.
+  The look of the web client: the JavaFX client's own colours — the navy bar, the navy and blue titles,
+  the light grey desk — so the two read as one application, with polymarket.com's way of drawing
+  things on top: white rounded cards, pills for filters, and green and red tints for buying and
+  selling. What sits where follows the JavaFX client, screen for screen.
 
   The two panes of a tab sit side by side on a wide window and one under the other on a narrow one;
   tables scroll inside their pane, never the page.
 */
 :root {
-    --ink: #23272d; --ink-2: #454a52; --muted: #6b727b; --faint: #9aa1aa;
-    --surface: #f4f5f7; --surface-2: #f7f8fa; --line: #e6e8eb; --line-soft: #f0f1f3; --white: #fff;
-    --blue: #2e5cff; --blue-hover: #1f4be6; --blue-tint: #eef2ff;
+    --ink: #2a2f3a; --ink-2: #454a52; --muted: #55607a; --faint: #9aa1aa;
+    --navy: #1f3864; --pale: #d6ddf0; --desk: #f5f6f8; --bar: #e4e7ee;
+    --surface: #eef0f4; --surface-2: #f5f6f8; --line: #d5dae6; --line-soft: #eceef3; --white: #fff;
+    --blue: #2e5496; --blue-hover: #3a68b8; --blue-tint: #e9edf5;
     --up: #007e26; --up-tint: #d9f0e2; --up-hover: #c6e8d3;
     --down: #df0c10; --down-tint: #fce9e9; --down-hover: #f8d6d6;
     --waiting: #b26a00;
@@ -20,21 +22,23 @@
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
-body { display: flex; flex-direction: column; background: var(--white); }
+body { display: flex; flex-direction: column; background: var(--desk); }
 [hidden] { display: none !important; }
 h1, h2, h3, h4, p { margin: 0; }
 
 /* Top bar */
-.header { display: flex; align-items: center; gap: 8px 16px; padding: 10px 20px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+.header { display: flex; align-items: center; gap: 8px 16px; padding: 10px 20px; flex-wrap: wrap; background: var(--navy); color: var(--white); }
 .brand { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-.brand-mark { width: 26px; height: 26px; fill: none; stroke: var(--blue); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
-.brand-mark rect { fill: var(--blue-tint); }
+.brand-mark { width: 26px; height: 26px; fill: none; stroke: var(--white); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.brand-mark rect { fill: rgba(255, 255, 255, .12); }
 .app-title { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; }
-.who { display: flex; gap: 12px; align-items: center; color: var(--muted); flex-wrap: wrap; }
-.header-balance { font-weight: 600; color: var(--ink); background: var(--surface); padding: 6px 12px; border-radius: 999px; }
+.who { display: flex; gap: 12px; align-items: center; color: var(--pale); flex-wrap: wrap; }
+.header-balance { font-weight: 600; color: var(--white); background: rgba(255, 255, 255, .14); padding: 6px 12px; border-radius: 999px; }
+.header button { background: transparent; color: var(--white); border-color: rgba(255, 255, 255, .45); }
+.header button:hover:not(:disabled) { background: rgba(255, 255, 255, .12); }
 .banner { background: var(--down-tint); color: var(--down); padding: 8px 20px; font-weight: 600; }
 main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.status-bar { border-top: 1px solid var(--line); color: var(--ink-2); padding: 8px 20px; min-height: 2.4em; font-size: 13px; overflow-wrap: anywhere; }
+.status-bar { background: var(--bar); color: var(--ink); padding: 8px 20px; min-height: 2.4em; font-size: 13px; overflow-wrap: anywhere; }
 
 /* Controls */
 button { font: inherit; font-weight: 600; height: 36px; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); color: var(--ink); cursor: pointer; transition: background-color .12s, border-color .12s; }
@@ -53,10 +57,10 @@ input.price { width: 6em; }
 
 /* Tabs, like Polymarket's category bar */
 .tabbed { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.tabs { display: flex; gap: 20px; padding: 0 20px; border-bottom: 1px solid var(--line); }
+.tabs { display: flex; gap: 20px; padding: 0 20px; border-bottom: 1px solid var(--line); background: var(--white); }
 .tab { height: 44px; padding: 0; border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--muted); font-size: 15px; }
 .tab:hover:not(:disabled) { background: none; color: var(--ink); }
-.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--navy); border-bottom-color: var(--navy); }
 .tab-panels { flex: 1; min-height: 0; }
 .tab-panel { height: 100%; }
 
@@ -65,7 +69,7 @@ input.price { width: 6em; }
 .events-split { grid-template-columns: minmax(0, 48fr) minmax(0, 52fr); }
 .account-split { grid-template-columns: minmax(0, 40fr) minmax(0, 60fr); }
 .pane { padding: 16px 20px; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
-.split > .pane + .pane { border-left: 1px solid var(--line); background: var(--surface-2); }
+.split > .pane + .pane { border-left: 1px solid var(--line); }
 @media (max-width: 900px) {
     .events-split, .account-split { grid-template-columns: minmax(0, 1fr); height: auto; }
     .split > .pane + .pane { border-left: none; border-top: 1px solid var(--line); }
@@ -98,13 +102,13 @@ td.tone-waiting { color: var(--waiting); font-weight: 600; }
 td.tone-closed { color: var(--muted); font-weight: 600; }
 
 /* Type */
-.detail-title { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; overflow-wrap: anywhere; }
-.section-title { font-size: 16px; font-weight: 600; margin-top: 8px; }
-.option-title { font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.detail-title { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; color: var(--navy); overflow-wrap: anywhere; }
+.section-title { font-size: 16px; font-weight: 600; margin-top: 8px; color: var(--blue); }
+.option-title { font-size: 16px; font-weight: 600; color: var(--navy); overflow-wrap: anywhere; }
 .caption, .summary, .filter-caption { color: var(--muted); }
 .small { font-size: 12px; }
 .problem { color: var(--down); }
-.balance { font-size: 20px; font-weight: 600; }
+.balance { font-size: 20px; font-weight: 600; color: var(--navy); }
 .labelled { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 18px; }
 .labelled dt { color: var(--muted); }
 .labelled dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
@@ -118,19 +122,19 @@ hr { border: none; border-top: 1px solid var(--line); width: 100%; margin: 4px 0
 .filters { display: flex; flex-wrap: wrap; gap: 10px 18px; }
 .filter-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .filter-caption { font-size: 12px; font-weight: 600; margin-right: 2px; }
-.toggle { height: 32px; padding: 0 12px; border: none; border-radius: 999px; background: var(--surface); font-size: 13px; }
+.toggle { height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--white); font-size: 13px; }
 .toggle:hover:not(:disabled) { background: var(--line); }
-.toggle[aria-pressed="true"] { background: var(--ink); color: var(--white); }
+.toggle[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: var(--white); }
 
 /* The trade panel, like Polymarket's trade card */
-.trade-panel { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.trade-panel { padding: 16px; background: var(--blue-tint); display: flex; flex-direction: column; gap: 10px; }
 .books { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 1100px) { .books { grid-template-columns: minmax(0, 1fr); } }
 .option-book { padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .option-book .table-wrap { max-height: 12em; }
 
 /* Login */
-.login-page { flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--surface-2); }
+.login-page { flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .login-card { padding: 28px; width: min(440px, 100%); display: flex; flex-direction: column; gap: 14px; }
 .login-card .row input { flex: 1; min-width: 0; }
 

@@ -8,6 +8,8 @@ rem             dist\guess-market-web.zip
 rem
 rem  Inside it:
 rem    guess-market.war   the exercise 3 server, unchanged
+rem    client\            the exercise 3 JavaFX client, unchanged, to upload events
+rem                       files with: the web client leaves uploading to it
 rem    web\               start.bat, serve.js, relay.js, package.json, public\
 rem    readme.docx        the exercise 4 readme (docs\readme-web.docx)
 rem    sample-files\      events files for a JavaFX client to upload
@@ -60,6 +62,7 @@ if exist "%DIST%\guess-market-web.zip" del /q "%DIST%\guess-market-web.zip"
 mkdir "%STAGE%\web"
 
 copy /y "%ROOT%build\guess-market.war" "%STAGE%\" >nul
+xcopy /e /i /q /y "%ROOT%build\client" "%STAGE%\client" >nul
 for %%F in (start.bat serve.js relay.js package.json) do copy /y "%ROOT%web\%%F" "%STAGE%\web\" >nul
 xcopy /e /i /q /y "%ROOT%web\public" "%STAGE%\web\public" >nul
 copy /y "%ROOT%docs\readme-web.docx" "%STAGE%\readme.docx" >nul
